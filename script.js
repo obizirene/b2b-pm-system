@@ -5084,14 +5084,13 @@
     function renderTaskAssigneesCheckboxes(selectedNames = []) {
       const wrap = document.getElementById('task-assignees-selection-wrap');
       if (!wrap) return;
-      const set = new Set((selectedNames || []).map(s => s.trim()));
 
       const dept1Id = document.getElementById('form-task-dept-1')?.value || '';
       const dept2Id = document.getElementById('form-task-dept-2')?.value || '';
       const selectedDeptIds = [dept1Id, dept2Id].filter(Boolean);
 
       if (selectedDeptIds.length === 0) {
-        wrap.innerHTML = `<div style="width:100%; font-size:11px; color:#475569; font-weight:600; padding:6px; background:#f1f5f9; border-radius:4px;">💡 提示：請先選取【任務評估】部門，將自動帶出該部門底下之同仁與主管</div>`;
+        wrap.innerHTML = `<div style="width:100%; font-size:11px; color:#475569; font-weight:600; padding:10px; background:#f1f5f9; border-radius:6px; text-align:center;">💡 提示：請先選取【任務評估】部門，將自動帶出該部門之指派與排程評估卡片</div>`;
         updateTaskAssigneesCountBadge();
         updateTaskBasicFieldsPermissions();
         return;
@@ -5105,6 +5104,7 @@
       const currentTask = taskId ? state.tasks.find(t => t.id === taskId) : null;
       const evaluations = currentTask?.evaluations || {};
       const taskStatus = document.getElementById('form-task-status')?.value || '規劃中';
+      const isDraftPhase = (taskStatus === '規劃中' || !taskId);
 
       let html = '';
 
@@ -5114,38 +5114,79 @@
 
         const deptMembers = state.members.filter(m => m.departmentId === dept.id || m.departmentName === dept.name);
         const isCurrentUserDeptManager = currentUserMember ? (dept.managerId === currentUserMember.id || dept.managerName === currentUserMember.name) : false;
-        const isDeptSubmitted = evaluations[deptId]?.submitted === true;
+        const deptEval = evaluations[deptId] || {};
+        const isDeptSubmitted = deptEval.submitted === true;
 
         let canEditThisDept = true;
-        if (taskStatus === '待評估') {
+        if (isDraftPhase) {
+          canEditThisDept = false; // 新增/規劃階段不在此指派
+        } else if (taskStatus === '待評估') {
           if (isDeptSubmitted) {
             canEditThisDept = false; // Submitted evaluation is locked!
           } else if (!isAdminOrPm && currentUserMember) {
             canEditThisDept = isCurrentUserDeptManager; // Scoped to manager's own department
           }
+        } else {
+          canEditThisDept = (isAdminOrPm || isManager) && !isDeptSubmitted;
         }
 
         const deptBadge = isDeptSubmitted 
-          ? `<span class="badge badge-success" style="font-size:10px;">🔒 已送出評估 (不可再編輯)</span>`
+          ? `<span class="badge badge-success" style="font-size:10px;">🔒 已送出評估 (${deptEval.submittedBy || '主管'})</span>`
           : `<span class="badge badge-warning" style="font-size:10px;">⏳ 待評估中</span>`;
 
+        // Pre-fill department assignees
+        const deptAssigneeList = (deptEval.assignees && deptEval.assignees.length > 0)
+          ? deptEval.assignees
+          : (idx === 0 ? selectedNames : []);
+        const deptAssigneeSet = new Set(deptAssigneeList.map(s => s.trim()));
+
+        // Pre-fill dates & hours
+        const deptStartVal = deptEval.startDate || (currentTask?.startDate || '');
+        const deptDueVal = deptEval.dueDate || (currentTask?.dueDate || '');
+        const deptHoursVal = (deptEval.estHours !== undefined && deptEval.estHours !== null) ? deptEval.estHours : (currentTask?.estHours || '');
+
         html += `
-          <div style="width:100%; margin-bottom:8px; background:white; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-              <span style="font-weight:700; font-size:12px; color:#1e40af;">🏢 部門 ${idx + 1}: ${dept.name} ${deptBadge}</span>
+          <div class="dept-eval-card" data-dept-id="${dept.id}" style="width:100%; background:white; padding:12px; border-radius:8px; border:1px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid #e2e8f0;">
+              <span style="font-weight:700; font-size:13px; color:#1e40af;">🏢 部門 ${idx + 1}: ${dept.name} ${deptBadge}</span>
               <span style="font-size:11px; color:#64748b;">👑 主管: ${dept.managerName || '未指定'}</span>
             </div>
-            <div style="display:flex; flex-wrap:wrap; gap:6px;">
-              ${deptMembers.length > 0 ? deptMembers.map(m => {
-                const isChecked = set.has(m.name.trim());
-                const isDisabled = !canEditThisDept;
-                return `
-                  <label class="assignee-pill ${isChecked ? 'active' : ''}" style="opacity:${isDisabled ? '0.65' : '1'}; cursor:${isDisabled ? 'not-allowed' : 'pointer'};">
-                    <input type="checkbox" name="task-assignee-cb" value="${m.name}" data-dept-id="${dept.id}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} onchange="onTaskAssigneeCheckboxChange()">
-                    <span>${m.name} <small style="color:${isChecked ? '#3b82f6' : '#64748b'};">(${m.role})</small></span>
-                  </label>
-                `;
-              }).join('') : '<span style="font-size:11px; color:#94a3b8;">此部門尚無設定成員</span>'}
+
+            <div style="margin-bottom:10px;">
+              <div style="font-size:11px; font-weight:700; color:#334155; margin-bottom:6px;">👥 共同指派執行人員 (Assignees) *</div>
+              ${isDraftPhase ? `
+                <div style="font-size:11px; color:#475569; background:#f1f5f9; padding:8px 10px; border-radius:6px; border:1px solid #e2e8f0;">
+                  💡 提示：新增/規劃階段無法指定執行人員，發布至【待評估】後將由主管「${dept.managerName || '部門主管'}」進行評估與指定
+                </div>
+              ` : `
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                  ${deptMembers.length > 0 ? deptMembers.map(m => {
+                    const isChecked = deptAssigneeSet.has(m.name.trim());
+                    const isDisabled = !canEditThisDept;
+                    return `
+                      <label class="assignee-pill ${isChecked ? 'active' : ''}" style="opacity:${isDisabled ? '0.65' : '1'}; cursor:${isDisabled ? 'not-allowed' : 'pointer'};">
+                        <input type="checkbox" name="task-assignee-cb" value="${m.name}" data-dept-id="${dept.id}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} onchange="onTaskAssigneeCheckboxChange()">
+                        <span>${m.name} <small style="color:${isChecked ? '#3b82f6' : '#64748b'};">(${m.role})</small></span>
+                      </label>
+                    `;
+                  }).join('') : '<span style="font-size:11px; color:#94a3b8;">此部門尚無設定成員</span>'}
+                </div>
+              `}
+            </div>
+
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:10px; background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid #e2e8f0; align-items:end;">
+              <div>
+                <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">📅 部門預估排程時間區段 (預估起訖時間)</label>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <input type="date" id="dept-start-${dept.id}" class="form-input form-input-sm" value="${deptStartVal}" ${!canEditThisDept ? 'disabled' : ''} style="font-size:12px; padding:4px 8px;" onchange="onDeptScheduleInputChange('${dept.id}')">
+                  <span style="font-size:11px; color:#64748b;">至</span>
+                  <input type="date" id="dept-due-${dept.id}" class="form-input form-input-sm" value="${deptDueVal}" ${!canEditThisDept ? 'disabled' : ''} style="font-size:12px; padding:4px 8px;" onchange="onDeptScheduleInputChange('${dept.id}')">
+                </div>
+              </div>
+              <div>
+                <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">⏱️ 預估工時 (小時)</label>
+                <input type="number" id="dept-hours-${dept.id}" class="form-input form-input-sm" placeholder="例如 8" value="${deptHoursVal}" ${!canEditThisDept ? 'disabled' : ''} style="font-size:12px; padding:4px 8px;" onchange="onDeptScheduleInputChange('${dept.id}')">
+              </div>
             </div>
           </div>
         `;
@@ -5154,6 +5195,10 @@
       wrap.innerHTML = html;
       updateTaskAssigneesCountBadge();
       updateTaskBasicFieldsPermissions();
+    }
+
+    function onDeptScheduleInputChange(deptId) {
+      updateTaskAssigneesCountBadge();
     }
 
     function getSelectedTaskAssignees() {
@@ -5417,8 +5462,23 @@
       const dept = (state.departments || []).find(d => d.id === targetDeptId);
       const deptName = dept ? dept.name : '該部門';
 
-      const estHours = document.getElementById('form-task-est-hours')?.value;
-      if (!estHours || Number(estHours) <= 0) {
+      const deptStart = document.getElementById(`dept-start-${targetDeptId}`)?.value || '';
+      const deptDue = document.getElementById(`dept-due-${targetDeptId}`)?.value || '';
+      const deptHoursVal = document.getElementById(`dept-hours-${targetDeptId}`)?.value;
+      const deptHours = deptHoursVal !== '' ? Number(deptHoursVal) : 0;
+
+      const deptAssigneesCbs = document.querySelectorAll(`input[name="task-assignee-cb"][data-dept-id="${targetDeptId}"]:checked`);
+      const deptAssignees = Array.from(deptAssigneesCbs).map(cb => cb.value.trim()).filter(Boolean);
+
+      if (deptAssignees.length === 0) {
+        if (!confirm(`⚠️ 尚未為「${deptName}」選擇指派執行人員，確定要送出評估嗎？`)) return;
+      }
+
+      if (!deptStart || !deptDue) {
+        if (!confirm(`⚠️ 尚未填寫「${deptName}」的預估起訖時間，確定要送出評估嗎？`)) return;
+      }
+
+      if (deptHours <= 0) {
         if (!confirm(`⚠️ 尚未填寫「${deptName}」的預估工時，確定要送出評估嗎？`)) return;
       }
 
@@ -5437,16 +5497,43 @@
         currentTask.evaluations[targetDeptId] = {
           submitted: true,
           submittedBy: currentUserName,
-          submittedAt: new Date().toISOString()
+          submittedAt: new Date().toISOString(),
+          assignees: deptAssignees,
+          startDate: deptStart,
+          dueDate: deptDue,
+          estHours: deptHours
         };
       }
 
       // Check if ALL designated departments have submitted
       const allSubmitted = selectedDeptIds.length > 0 && selectedDeptIds.every(id => currentTask.evaluations[id]?.submitted === true);
 
+      // Aggregate overall task values across all evaluated departments
+      const allStarts = selectedDeptIds.map(id => currentTask.evaluations[id]?.startDate).filter(Boolean);
+      const allDues = selectedDeptIds.map(id => currentTask.evaluations[id]?.dueDate).filter(Boolean);
+      
+      allStarts.sort();
+      allDues.sort();
+
+      const minStart = allStarts[0] || deptStart;
+      const maxDue = allDues[allDues.length - 1] || deptDue;
+      const totalEstHours = selectedDeptIds.reduce((sum, id) => sum + (Number(currentTask.evaluations[id]?.estHours) || 0), 0);
+      const combinedAssignees = Array.from(new Set(selectedDeptIds.flatMap(id => currentTask.evaluations[id]?.assignees || [])));
+
+      // Sync to hidden overall fields
+      const hiddenStart = document.getElementById('form-task-start');
+      const hiddenDue = document.getElementById('form-task-due');
+      const hiddenHours = document.getElementById('form-task-est-hours');
+      const hiddenAssignee = document.getElementById('form-task-assignee');
+
+      if (hiddenStart) hiddenStart.value = minStart;
+      if (hiddenDue) hiddenDue.value = maxDue;
+      if (hiddenHours) hiddenHours.value = totalEstHours;
+      if (hiddenAssignee) hiddenAssignee.value = combinedAssignees.join(', ');
+
       if (allSubmitted || selectedDeptIds.length === 0) {
         setTaskModalStatus('待執行');
-        showToast(`🎉 「${deptName}」已送出評估！所有指定評估部門皆已完成評估，任務狀態自動轉換為「待執行」。`);
+        showToast(`🎉 「${deptName}」評估已送出！所有評估部門皆已完成，任務狀態已自動轉換為「待執行」。`);
       } else {
         setTaskModalStatus('待評估');
         showToast(`📋 「${deptName}」評估已成功送出！等待其他部門主管完成評估...`);
@@ -5889,13 +5976,6 @@
         if (status === '已完成' && !hasPermission('task_complete_permission')) {
           alert('⚠️ 您目前無「審核任務驗收結案 (切換為已完成)」權限，需由專案經理 (PM) 審核結案！');
           return;
-        }
-
-        // 待執行：填寫完畢就切換狀態為【進行中】
-        if (status === '待執行' && startDate && dueDate && estHours > 0) {
-          status = '進行中';
-          setTaskModalStatus('進行中');
-          showToast('預估排程與工時已填寫完畢，任務狀態自動轉換為「進行中」！');
         }
 
         sanitizePhases();

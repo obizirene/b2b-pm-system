@@ -1183,15 +1183,13 @@
         
         <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <label class="form-label" style="margin:0;">👥 共同指派執行人員 (Assignees - 可複選多人完成任務) *</label>
+            <label class="form-label" style="margin:0; font-weight:700; color:#1e40af;">👥 各部門指派與預估排程工時 (Department Evaluations) *</label>
             <div style="display:flex; gap:6px; align-items:center;">
               <span id="task-assignees-count-badge" class="badge badge-info" style="font-size:11px;">已選 0 人</span>
-              <button type="button" id="btn-select-all-assignees" class="btn btn-secondary btn-xs" onclick="toggleAllTaskAssignees(true)" style="padding:1px 6px; font-size:11px;">全選</button>
-              <button type="button" id="btn-clear-assignees" class="btn btn-secondary btn-xs" onclick="toggleAllTaskAssignees(false)" style="padding:1px 6px; font-size:11px;">清空</button>
             </div>
           </div>
-          <div id="task-assignees-selection-wrap" style="display:flex; flex-wrap:wrap; gap:6px; max-height:130px; overflow-y:auto; padding:8px; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc;">
-            <!-- 執行人員勾選按鈕將由程式動態產生 -->
+          <div id="task-assignees-selection-wrap" style="display:flex; flex-direction:column; gap:10px;">
+            <!-- 各部門指派與預估排程工時卡片將由程式動態產生 -->
           </div>
           <input type="hidden" id="form-task-assignee" value="">
         </div>
@@ -1201,98 +1199,10 @@
           <input type="date" id="form-task-expected-date" class="form-input">
         </div>
 
-        <div id="section-task-schedule" style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; transition: all 0.2s;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <div style="font-weight:700; font-size:12px; color:#1e40af;">📅 預估排程與預估工時 (Planned Schedule)</div>
-            <span id="badge-schedule-lock" style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; display:none;"></span>
-          </div>
-          
-          <div class="form-group" style="margin-bottom: 8px;">
-            <label class="form-label">預估排程時間區段 (預估起訖時間)</label>
-            <!-- 隱藏的標準日期欄位以確保現有邏輯 100% 相容 -->
-            <input type="hidden" id="form-task-start" value="">
-            <input type="hidden" id="form-task-due" value="">
-            
-            <div id="task-schedule-range-wrap" style="position:relative;">
-              <!-- 訂房網風格時間區段觸發欄位 -->
-              <div id="booking-date-range-field" class="booking-range-field" onclick="toggleDateRangePicker(event)" title="點擊展開/收合雙月份日曆選擇器">
-                <div class="booking-date-segment" id="booking-seg-start">
-                  <div class="booking-seg-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                  </div>
-                  <div class="booking-seg-content">
-                    <span class="booking-seg-label">預估開始時間</span>
-                    <span class="booking-seg-date" id="booking-text-start-date">-- 年 -- 月 -- 日</span>
-                    <span class="booking-seg-weekday" id="booking-text-start-week">尚未選擇</span>
-                  </div>
-                </div>
-                
-                <div class="booking-seg-divider">➜</div>
-                
-                <div class="booking-date-segment" id="booking-seg-end">
-                  <div class="booking-seg-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                  </div>
-                  <div class="booking-seg-content">
-                    <span class="booking-seg-label">預估結束時間</span>
-                    <span class="booking-seg-date" id="booking-text-end-date">-- 年 -- 月 -- 日</span>
-                    <span class="booking-seg-weekday" id="booking-text-end-week">尚未選擇</span>
-                  </div>
-                </div>
-                
-                <div class="booking-seg-meta">
-                  <span class="booking-days-pill" id="badge-range-days">未設定區間</span>
-                  <span class="booking-caret">▼</span>
-                </div>
-              </div>
-
-              <!-- 雙月份日曆浮層彈窗 (Dual-Month Calendar Popover) -->
-              <div id="booking-picker-popover" class="booking-picker-popover" style="display:none;" onclick="event.stopPropagation()">
-                <div class="booking-picker-header">
-                  <button type="button" class="booking-nav-btn" onclick="navPickerMonth(-1)" title="上一月">‹</button>
-                  <div class="booking-month-title" id="booking-month-title-left">2026年 9月</div>
-                  <div style="width: 28px;"></div>
-                  <div class="booking-month-title" id="booking-month-title-right">2026年 10月</div>
-                  <button type="button" class="booking-nav-btn" onclick="navPickerMonth(1)" title="下一月">›</button>
-                </div>
-                <div class="booking-dual-calendar-body">
-                  <div class="booking-month-col">
-                    <div class="booking-calendar-grid" id="booking-cal-grid-left"></div>
-                  </div>
-                  <div class="booking-calendar-sep"></div>
-                  <div class="booking-month-col">
-                    <div class="booking-calendar-grid" id="booking-cal-grid-right"></div>
-                  </div>
-                </div>
-                <div class="booking-picker-footer">
-                  <div class="booking-picker-summary" id="booking-picker-summary-text">請在日曆上點選開始日期</div>
-                  <div class="booking-picker-actions">
-                    <button type="button" class="btn-range-quick" style="color:#ef4444; border-color:#fecaca;" onclick="clearPickerSelection()">清除</button>
-                    <button type="button" class="btn btn-primary btn-xs" onclick="closeDateRangePicker()">完成確認</button>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- 快捷區段按鈕 -->
-              <div id="task-schedule-range-presets" style="display:flex; align-items:center; gap:5px; margin-top:8px; flex-wrap:wrap;">
-                <span style="font-size:11px; color:#64748b; font-weight:600;">快速區段:</span>
-                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickRange(1)" title="單日">+1天</button>
-                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickRange(3)" title="三天">+3天</button>
-                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickRange(7)" title="一週">+1週</button>
-                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickRange(14)" title="兩週">+2週</button>
-                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickRange(30)" title="一個月">+1個月</button>
-                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickPreset('this_week')" title="本週工作天">本週</button>
-                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickPreset('next_week')" title="下週工作天">下週</button>
-                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickPreset('clear')" style="color:#ef4444; border-color:#fecaca;" title="清除區間">清除</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-top:8px;">
-            <label class="form-label">預估所需工時 (小時)</label>
-            <input type="number" id="form-task-est-hours" class="form-input" placeholder="例如 8">
-          </div>
-        </div>
+        <!-- 隱藏的全域排程與工時欄位 (確保系統邏輯 100% 相容) -->
+        <input type="hidden" id="form-task-start" value="">
+        <input type="hidden" id="form-task-due" value="">
+        <input type="hidden" id="form-task-est-hours" value="">
 
         <div class="form-row" id="row-task-status-severity">
           <div class="form-group">
