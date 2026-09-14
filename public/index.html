@@ -914,6 +914,7 @@
             </span>
           </div>
         </div>
+        <div id="modal-task-header-actions" style="display:flex; gap:8px; align-items:center; flex-shrink:0; margin-right:8px;"></div>
         <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-task')" style="flex-shrink:0;">✕</button>
       </div>
       <div class="modal-body">
@@ -1072,7 +1073,8 @@
             <label class="form-label">狀態 (Status) *</label>
             <select id="form-task-status" class="form-select" onchange="onTaskStatusChange(this.value)">
               <option value="規劃中">規劃中 (Planning)</option>
-              <option value="待執行">待執行 (Pending)</option>
+              <option value="待評估">待評估 (Pending Evaluation)</option>
+              <option value="待執行">待執行 (Pending Execution)</option>
               <option value="進行中">進行中 (In Progress)</option>
               <option value="待測試">待測試 (Pending Testing)</option>
               <option value="已完成">已完成 (Completed)</option>
@@ -1091,7 +1093,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('modal-task')">取消</button>
-        <button class="btn btn-primary" onclick="saveTask()">儲存任務 / 議題</button>
+        <button class="btn btn-primary" id="btn-save-task" onclick="saveTask()">儲存草稿</button>
       </div>
     </div>
   </div>

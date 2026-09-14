@@ -1243,29 +1243,17 @@
       if (status === '待測試') return 'badge-purple';
       if (status === '進行中') return 'badge-info';
       if (status === '待執行') return 'badge-warning';
+      if (status === '待評估') return 'badge-warning';
       return 'badge-slate'; // 規劃中
     }
 
     function applyRolePermissions() {
       // 1. Sidebar module buttons visibility
       const btnDashboard = document.getElementById('nav-btn-dashboard');
-      const btnMembers = document.getElementById('nav-btn-members');
-      const btnRoles = document.getElementById('nav-btn-roles');
-      const btnClients = document.getElementById('nav-btn-clients');
-      const btnProjects = document.getElementById('nav-btn-projects');
       const btnGantt = document.getElementById('nav-btn-gantt');
       const btnWorklogs = document.getElementById('nav-btn-worklogs');
       const btnTasks = document.getElementById('nav-btn-tasks');
       const btnIssues = document.getElementById('nav-btn-issues');
-
-      const canDashboard = hasPermission('dashboard_view');
-      const canMembers = hasPermission('member_view');
-      const canRoles = hasPermission('role_view');
-      const canClients = hasPermission('client_view');
-      const canProjects = hasPermission('proj_view');
-      const canGantt = hasPermission('gantt_view');
-      const canWorklogs = hasPermission('worklog_view');
-      const canTasks = hasPermission('task_view');
       const canIssues = hasPermission('issue_view');
 
       if (btnDashboard) btnDashboard.style.display = canDashboard ? '' : 'none';
@@ -1539,10 +1527,21 @@
 
     function recalculateActualHoursFromWorkLogs() {
       state.tasks.forEach(task => {
-        const logs = state.workLogs.filter(w => w.taskId === task.id);
+        const logs = (state.workLogs || []).filter(w => w.taskId === task.id && Number(w.hours) > 0);
         if (logs.length > 0) {
           const sum = logs.reduce((acc, l) => acc + (Number(l.hours) || 0), 0);
           task.actHours = sum;
+
+          // 滾動調整實際開始日為第一筆填寫工時之日期
+          const dates = logs.map(l => l.date).filter(Boolean).sort();
+          if (dates.length > 0) {
+            task.startDate = dates[0];
+          }
+
+          // 執行者填寫工時後自動將狀態切換為「進行中」
+          if (['待執行', '規劃中', '待評估'].includes(task.status)) {
+            task.status = '進行中';
+          }
         }
       });
     }
@@ -3739,11 +3738,8 @@
         showToast('工時填報成功！');
       }
 
-      // 更新任務實際累積工時
-      const totalActHours = state.workLogs
-        .filter(l => l.taskId === taskId)
-        .reduce((sum, l) => sum + (Number(l.hours) || 0), 0);
-      task.actHours = totalActHours;
+      // 更新任務實際累積工時、滾動實際開始日與狀態
+      recalculateActualHoursFromWorkLogs();
 
       syncToFirebase();
       closeModal('modal-worklog');
@@ -3754,6 +3750,8 @@
     function deleteWorkLog(id) {
       if (confirm('確定刪除此工時記錄嗎？')) {
         state.workLogs = state.workLogs.filter(l => l.id !== id);
+        recalculateActualHoursFromWorkLogs();
+        syncToFirebase();
         renderAll();
         showToast('工時已刪除');
       }
@@ -4467,6 +4465,7 @@
       const estimator = document.getElementById('form-task-estimator')?.value || '';
       updateTaskScheduleSectionState(status, estimator);
       updateTaskStatusDropdownPermissions(status, selected);
+      updateTaskModalHeaderAndFooterActions(status, estimator, selected);
     }
 
     function toggleAllTaskAssignees(checkAll) {
@@ -4487,12 +4486,92 @@
 
     function onTaskEstimatorChange(newEstimator) {
       const status = document.getElementById('form-task-status')?.value || '規劃中';
+      const assignees = getSelectedTaskAssignees();
       updateTaskScheduleSectionState(status, newEstimator);
+      updateTaskModalHeaderAndFooterActions(status, newEstimator, assignees);
     }
 
     function onTaskAssigneeChange(newAssignee) {
       // Legacy fallback
       onTaskAssigneeCheckboxChange();
+    }
+
+    function updateTaskModalHeaderAndFooterActions(status, estimator, assignees) {
+      const container = document.getElementById('modal-task-header-actions');
+      const btnSave = document.getElementById('btn-save-task');
+
+      if (btnSave) {
+        if (status === '規劃中' || status === '待評估') {
+          btnSave.innerText = '💾 儲存草稿';
+        } else {
+          btnSave.innerText = '💾 儲存任務';
+        }
+      }
+
+      if (!container) return;
+
+      const isManager = isCurrentRoleManager();
+      const isEstimator = checkIsTaskEstimator(estimator);
+      const isAssignee = checkIsTaskAssignee(assignees);
+      const canComplete = hasPermission('task_complete_permission');
+
+      let html = '';
+
+      if (status === '規劃中') {
+        if (isManager || hasPermission('task_edit')) {
+          html = `<button type="button" class="btn btn-primary btn-sm" onclick="publishTaskFromModal()" style="font-weight:600;">🚀 發布</button>`;
+        }
+      } else if (status === '待評估') {
+        if (isEstimator || isManager) {
+          html = `<button type="button" class="btn btn-primary btn-sm" onclick="submitTaskEvaluationFromModal()" style="font-weight:600;">📋 送出評估</button>`;
+        }
+      } else if (status === '進行中') {
+        if (isAssignee || isManager) {
+          html = `<button type="button" class="btn btn-success btn-sm" onclick="completeTaskExecutionFromModal()" style="font-weight:600;">✨ 執行完成</button>`;
+        }
+      } else if (status === '待測試') {
+        if (canComplete || isManager) {
+          html = `<button type="button" class="btn btn-success btn-sm" onclick="completeTaskFinalFromModal()" style="font-weight:600;">🎉 任務完成</button>`;
+        }
+      }
+
+      container.innerHTML = html;
+    }
+
+    function publishTaskFromModal() {
+      document.getElementById('form-task-status').value = '待評估';
+      const estimator = document.getElementById('form-task-estimator')?.value || '';
+      const assignees = getSelectedTaskAssignees();
+      updateTaskModalHeaderAndFooterActions('待評估', estimator, assignees);
+      saveTask();
+    }
+
+    function submitTaskEvaluationFromModal() {
+      const estHours = document.getElementById('form-task-est-hours')?.value;
+      if (!estHours || Number(estHours) <= 0) {
+        if (!confirm('⚠️ 尚未填寫預估工時，確定要送出評估並切換為待執行嗎？')) return;
+      }
+      document.getElementById('form-task-status').value = '待執行';
+      const estimator = document.getElementById('form-task-estimator')?.value || '';
+      const assignees = getSelectedTaskAssignees();
+      updateTaskModalHeaderAndFooterActions('待執行', estimator, assignees);
+      saveTask();
+    }
+
+    function completeTaskExecutionFromModal() {
+      document.getElementById('form-task-status').value = '待測試';
+      const estimator = document.getElementById('form-task-estimator')?.value || '';
+      const assignees = getSelectedTaskAssignees();
+      updateTaskModalHeaderAndFooterActions('待測試', estimator, assignees);
+      saveTask();
+    }
+
+    function completeTaskFinalFromModal() {
+      document.getElementById('form-task-status').value = '已完成';
+      const estimator = document.getElementById('form-task-estimator')?.value || '';
+      const assignees = getSelectedTaskAssignees();
+      updateTaskModalHeaderAndFooterActions('已完成', estimator, assignees);
+      saveTask();
     }
 
     function updateTaskScheduleSectionState(status, estimator) {
@@ -4523,10 +4602,20 @@
           badgeText = `🔒 鎖定 (僅限評估人「${estimator || '未指定'}」或主管填寫)`;
           badgeStyle = 'background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;';
         }
+      } else if (status === '待評估') {
+        if (isEstimator || isManager) {
+          canEdit = true;
+          badgeText = isManager ? '✏️ 主管權限可填寫預估排程與工時' : `✏️ 請評估人「${estimator || '您'}」填寫預估排程與工時`;
+          badgeStyle = 'background: #fef3c7; color: #b45309; border: 1px solid #fde68a;';
+        } else {
+          canEdit = false;
+          badgeText = `🔒 鎖定 (僅限評估人「${estimator || '未指定'}」或主管評估)`;
+          badgeStyle = 'background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;';
+        }
       } else if (status === '待執行') {
         if ((hasSchedPerm && isEstimator) || isManager) {
           canEdit = true;
-          badgeText = '✏️ 請填寫排程與工時（填妥將自動轉為進行中）';
+          badgeText = '✏️ 可填寫排程與工時（填工時後自動轉為進行中）';
           badgeStyle = 'background: #fef3c7; color: #b45309; border: 1px solid #fde68a;';
         } else {
           canEdit = false;
@@ -4636,6 +4725,7 @@
       const assignees = getSelectedTaskAssignees();
       updateTaskScheduleSectionState(newStatus, estimator);
       updateTaskStatusDropdownPermissions(newStatus, assignees);
+      updateTaskModalHeaderAndFooterActions(newStatus, estimator, assignees);
     }
 
     function openTaskModal(taskId = null, prefillPhaseId = null, prefillModuleId = null) {
@@ -4732,6 +4822,7 @@
       }
       updateTaskScheduleSectionState(taskStatus, taskEstimator);
       updateTaskStatusDropdownPermissions(taskStatus, taskAssignees);
+      updateTaskModalHeaderAndFooterActions(taskStatus, taskEstimator, taskAssignees);
       openModal('modal-task');
       setTimeout(() => {
         const bodyTitleInput = document.getElementById('form-task-title-input');
