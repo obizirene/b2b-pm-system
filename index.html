@@ -181,6 +181,7 @@
           <select id="header-role-simulator-select" onchange="onRoleSimulatorChange(this.value)" style="font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; color: #1e293b; outline: none;">
             <option value="self">本人身分 (自動偵測) irene [已驗證]</option>
             <option value="role-pm">專案經理 (PM)</option>
+            <option value="role-dept-manager">👑 部門主管</option>
             <option value="role-dev">全端工程師</option>
             <option value="role-ui">UI/UX 設計師</option>
             <option value="role-qa">QA 測試工程師</option>
@@ -293,6 +294,7 @@
             <select id="roles-page-simulator-select" class="form-select" style="width: 220px; padding: 6px 10px; font-weight: 700;" onchange="onRoleSimulatorChange(this.value)">
               <option value="self">本人身分 (全端 PM / 登入身份)</option>
               <option value="role-pm">專案經理 (PM)</option>
+              <option value="role-dept-manager">👑 部門主管</option>
               <option value="role-dev">全端工程師</option>
               <option value="role-ui">UI/UX 設計師</option>
               <option value="role-qa">QA 測試工程師</option>
@@ -773,10 +775,10 @@
   <div class="modal-overlay" id="modal-department" onclick="handleOverlayClick(event, 'modal-department')">
     <div class="modal-box lg">
       <div class="modal-header">
-        <div class="modal-title" id="modal-dept-title">🏛️ 新增 / 編輯部門組織與獨立權限矩陣</div>
+        <div class="modal-title" id="modal-dept-title">🏛️ 新增 / 編輯部門組織與主管設定</div>
         <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-department')">✕</button>
       </div>
-      <div class="modal-body" style="max-height: calc(85vh - 120px); overflow-y: auto;">
+      <div class="modal-body">
         <input type="hidden" id="form-dept-id">
         <div class="form-row">
           <div class="form-group">
@@ -800,23 +802,11 @@
           </div>
         </div>
 
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-top: 14px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-            <div style="font-weight: 800; font-size: 13px; color: #1e293b;">🛡️ 部門獨立權限配置 (Manager vs Employee Permissions)</div>
-            <div class="tab-pill-group" style="margin:0;">
-              <button type="button" class="tab-pill active" id="tab-dept-perm-mgr" onclick="switchDeptPermTab('mgr')">👑 部門主管專屬權限</button>
-              <button type="button" class="tab-pill" id="tab-dept-perm-emp" onclick="switchDeptPermTab('emp')">👤 部門員工一般權限</button>
-            </div>
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px; margin-top: 14px; display: flex; align-items: flex-start; gap: 10px;">
+          <span style="font-size: 20px;">🛡️</span>
+          <div style="font-size: 12px; color: #1e40af; line-height: 1.5;">
+            <strong>權限管理提示</strong>：部門主管之全站功能權限，已調整為由 <strong>【權限矩陣管理 ➔ 部門主管】</strong> 集中設定與繼承。在此只需指定「誰是部門主管」即可。
           </div>
-          <p style="font-size: 11px; color: #64748b; margin-bottom: 10px;">
-            此處可針對【部門主管】與【部門成員員工】獨立設定特權與作業權限。該成員歸屬於此部門時，將自動繼承所選定的專屬權限矩陣。
-          </p>
-
-          <!-- Dept Manager Matrix -->
-          <div id="dept-perm-matrix-mgr" style="display:flex; flex-direction:column; gap:10px; max-height:280px; overflow-y:auto;"></div>
-
-          <!-- Dept Employee Matrix -->
-          <div id="dept-perm-matrix-emp" style="display:none; flex-direction:column; gap:10px; max-height:280px; overflow-y:auto;"></div>
         </div>
       </div>
       <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">

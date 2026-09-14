@@ -143,6 +143,15 @@
           permissions: ['dashboard_view', 'member_view', 'member_create', 'member_edit', 'member_delete', 'role_view', 'role_edit', 'client_view', 'client_create', 'client_edit', 'client_delete', 'proj_view', 'proj_create', 'proj_edit', 'proj_delete', 'gantt_view', 'gantt_add_phase', 'gantt_add_task', 'gantt_drag', 'gantt_delete', 'gantt_export', 'worklog_view', 'worklog_create', 'worklog_edit', 'worklog_delete', 'task_view', 'task_create', 'task_edit', 'task_schedule_edit', 'task_complete_permission', 'task_delete', 'issue_view', 'issue_create', 'issue_edit', 'issue_delete', 'issue_comment']
         },
         {
+          id: 'role-dept-manager',
+          name: '部門主管',
+          isSystem: false,
+          isAdmin: false,
+          description: '負責部門內部人員派工、預估排程與工時填寫、任務驗收審核與部門工時成本檢視',
+          responsibilities: '部門任務管理、審核預估排程工時、簽核驗收、成員排程調配與部門成本分析',
+          permissions: ['dashboard_view', 'member_view', 'proj_view', 'gantt_view', 'gantt_add_phase', 'gantt_add_task', 'gantt_drag', 'worklog_view', 'worklog_create', 'worklog_edit', 'worklog_delete', 'task_view', 'task_create', 'task_edit', 'task_schedule_edit', 'task_complete_permission', 'issue_view', 'issue_create', 'issue_edit', 'issue_delete', 'issue_comment', 'dept_view', 'salary_view']
+        },
+        {
           id: 'role-dev',
           name: '全端工程師',
           isSystem: false,
@@ -1162,13 +1171,11 @@
         if (isSystemAdminRole(role)) return true;
         let perms = Array.isArray(role.permissions) ? role.permissions : (role.permissions ? Object.values(role.permissions) : []);
         
-        // Dynamic Department Manager/Employee Permissions in Simulator
-        const simMember = (state.members || []).find(m => m.role === role.name || m.id === state.simulatedRoleId);
-        if (simMember && simMember.departmentId && state.departments) {
-          const dept = state.departments.find(d => d.id === simMember.departmentId || d.name === simMember.departmentId);
-          if (dept) {
-            const isManager = (dept.managerId === simMember.id || dept.managerName === simMember.name);
-            const deptPerms = isManager ? (dept.managerPermissions || []) : (dept.employeePermissions || []);
+        // If simulated role is role-dept-manager or Department Manager
+        if (state.simulatedRoleId === 'role-dept-manager' || state.simulatedRoleId === '部門主管') {
+          const deptMgrRole = (state.roles || []).find(r => r && (r.id === 'role-dept-manager' || r.name === '部門主管'));
+          if (deptMgrRole) {
+            const deptPerms = Array.isArray(deptMgrRole.permissions) ? deptMgrRole.permissions : Object.values(deptMgrRole.permissions || {});
             perms = [...new Set([...perms, ...deptPerms])];
           }
         }
@@ -1186,12 +1193,11 @@
           perms = Array.isArray(role.permissions) ? role.permissions : (role.permissions ? Object.values(role.permissions) : []);
         }
 
-        // Dynamic Department Manager vs Department Employee Permissions
-        if (member.departmentId && state.departments) {
-          const dept = state.departments.find(d => d.id === member.departmentId || d.name === member.departmentId);
-          if (dept) {
-            const isManager = (dept.managerId === member.id || dept.managerName === member.name);
-            const deptPerms = isManager ? (dept.managerPermissions || []) : (dept.employeePermissions || []);
+        // Dynamic Department Manager inherits permissions from '部門主管' role in state.roles
+        if (isDepartmentManager(member) || roleName === '部門主管' || member.role === '部門主管') {
+          const deptMgrRole = (state.roles || []).find(r => r && (r.id === 'role-dept-manager' || r.name === '部門主管'));
+          if (deptMgrRole) {
+            const deptPerms = Array.isArray(deptMgrRole.permissions) ? deptMgrRole.permissions : Object.values(deptMgrRole.permissions || {});
             perms = [...new Set([...perms, ...deptPerms])];
           }
         }
@@ -1323,11 +1329,12 @@
 
     function isCurrentRoleManager() {
       if (state.isSimulatorActive && state.simulatedRoleId !== 'self') {
-        return state.simulatedRoleId === 'role-pm' || state.simulatedRoleId === 'role-admin';
+        return state.simulatedRoleId === 'role-pm' || state.simulatedRoleId === 'role-admin' || state.simulatedRoleId === 'role-dept-manager' || state.simulatedRoleId === '部門主管';
       }
       if (currentAuthUser && currentAuthUser.memberInfo) {
         const r = currentAuthUser.memberInfo.role;
-        return r.includes('PM') || r.includes('專案經理') || r.includes('管理員');
+        if (r.includes('PM') || r.includes('專案經理') || r.includes('管理員') || r.includes('主管')) return true;
+        if (isDepartmentManager(currentAuthUser.memberInfo)) return true;
       }
       return true;
     }
@@ -1985,8 +1992,6 @@
       tbody.innerHTML = (state.departments || []).map(dept => {
         const managerName = dept.managerName || (state.members.find(m => m.id === dept.managerId)?.name || '未指定');
         const deptMembers = (state.members || []).filter(m => m.departmentId === dept.id || m.departmentName === dept.name);
-        const mgrPermCount = (dept.managerPermissions || []).length;
-        const empPermCount = (dept.employeePermissions || []).length;
 
         return `
           <tr>
@@ -2005,12 +2010,11 @@
             </td>
             <td>
               <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <span class="badge badge-purple" style="font-size:11px;">👑 主管特權: ${mgrPermCount} 項</span>
-                <span class="badge badge-slate" style="font-size:11px;">👤 員工權限: ${empPermCount} 項</span>
+                <span class="badge badge-purple" style="font-size:11px;">👑 主管權限: 繼承【部門主管】角色矩陣</span>
               </div>
             </td>
             <td style="text-align: right;">
-              ${hasPermission('dept_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openDepartmentModal('${dept.id}')">編輯部門與權限</button>` : ''}
+              ${hasPermission('dept_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openDepartmentModal('${dept.id}')">⚙️ 編輯主管與組織</button>` : ''}
               ${hasPermission('dept_edit') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteDepartment('${dept.id}')">刪除</button>` : ''}
             </td>
           </tr>
@@ -2019,103 +2023,22 @@
     }
 
     function switchDeptPermTab(tabType) {
-      currentDeptPermTab = tabType;
-      const tabMgr = document.getElementById('tab-dept-perm-mgr');
-      const tabEmp = document.getElementById('tab-dept-perm-emp');
-      const matrixMgr = document.getElementById('dept-perm-matrix-mgr');
-      const matrixEmp = document.getElementById('dept-perm-matrix-emp');
-
-      if (tabType === 'mgr') {
-        if (tabMgr) tabMgr.classList.add('active');
-        if (tabEmp) tabEmp.classList.remove('active');
-        if (matrixMgr) matrixMgr.style.display = 'flex';
-        if (matrixEmp) matrixEmp.style.display = 'none';
-      } else {
-        if (tabEmp) tabEmp.classList.add('active');
-        if (tabMgr) tabMgr.classList.remove('active');
-        if (matrixEmp) matrixEmp.style.display = 'flex';
-        if (matrixMgr) matrixMgr.style.display = 'none';
-      }
+      // Legacy fallback
     }
 
-    const ALL_SYSTEM_PERMISSIONS = [
-      { key: 'dashboard_view', label: '📊 檢視專案總覽 (dashboard_view)', group: '總覽與畫板' },
-      { key: 'member_view', label: '👥 檢視員工列表 (member_view)', group: '成員與組織' },
-      { key: 'member_create', label: '➕ 新增員工 (member_create)', group: '成員與組織' },
-      { key: 'member_edit', label: '✏️ 編輯員工 (member_edit)', group: '成員與組織' },
-      { key: 'member_delete', label: '🗑️ 刪除員工 (member_delete)', group: '成員與組織' },
-      { key: 'dept_view', label: '🏛️ 檢視部門管理 (dept_view)', group: '成員與組織' },
-      { key: 'dept_edit', label: '⚙️ 部門權限維護 (dept_edit)', group: '成員與組織' },
-      { key: 'role_view', label: '🛡️ 檢視角色矩陣 (role_view)', group: '成員與組織' },
-      { key: 'role_edit', label: '✏️ 編輯角色矩陣 (role_edit)', group: '成員與組織' },
-      { key: 'client_view', label: '🏢 檢視客戶列表 (client_view)', group: '客戶與專案' },
-      { key: 'client_create', label: '➕ 新增客戶 (client_create)', group: '客戶與專案' },
-      { key: 'client_edit', label: '✏️ 編輯客戶 (client_edit)', group: '客戶與專案' },
-      { key: 'client_delete', label: '🗑️ 刪除客戶 (client_delete)', group: '客戶與專案' },
-      { key: 'proj_view', label: '📁 檢視專案清單 (proj_view)', group: '客戶與專案' },
-      { key: 'proj_create', label: '➕ 建立主專案 (proj_create)', group: '客戶與專案' },
-      { key: 'proj_edit', label: '✏️ 編輯主專案 (proj_edit)', group: '客戶與專案' },
-      { key: 'proj_delete', label: '🗑️ 刪除主專案 (proj_delete)', group: '客戶與專案' },
-      { key: 'gantt_view', label: '📅 檢視甘特圖 (gantt_view)', group: '甘特與排程' },
-      { key: 'gantt_add_phase', label: '➕ 新增第一階階段 (gantt_add_phase)', group: '甘特與排程' },
-      { key: 'gantt_add_task', label: '➕ 新增功能/任務 (gantt_add_task)', group: '甘特與排程' },
-      { key: 'gantt_drag', label: '↔️ 拖曳微調排程 (gantt_drag)', group: '甘特與排程' },
-      { key: 'gantt_delete', label: '🗑️ 刪除排程節點 (gantt_delete)', group: '甘特與排程' },
-      { key: 'gantt_export', label: '📤 匯出 CSV 報表 (gantt_export)', group: '甘特與排程' },
-      { key: 'worklog_view', label: '⏱️ 檢視工時日誌 (worklog_view)', group: '工時與任務' },
-      { key: 'worklog_create', label: '✍️ 填寫工時日誌 (worklog_create)', group: '工時與任務' },
-      { key: 'worklog_edit', label: '✏️ 編輯工時日誌 (worklog_edit)', group: '工時與任務' },
-      { key: 'worklog_delete', label: '🗑️ 刪除工時日誌 (worklog_delete)', group: '工時與任務' },
-      { key: 'task_view', label: '📋 檢視任務追蹤 (task_view)', group: '工時與任務' },
-      { key: 'task_create', label: '➕ 建立新任務 (task_create)', group: '工時與任務' },
-      { key: 'task_edit', label: '✏️ 編輯任務內容 (task_edit)', group: '工時與任務' },
-      { key: 'task_schedule_edit', label: '📅 編輯預估排程工時 (task_schedule_edit)', group: '工時與任務' },
-      { key: 'task_complete_permission', label: '🎉 審核驗收/切換已完成 (task_complete_permission)', group: '工時與任務' },
-      { key: 'task_delete', label: '🗑️ 刪除任務 (task_delete)', group: '工時與任務' },
-      { key: 'salary_view', label: '💰 檢視薪資與成本 (salary_view)', group: '財務與薪資' },
-      { key: 'salary_edit', label: '✏️ 編輯員工薪資 (salary_edit)', group: '財務與薪資' },
-      { key: 'issue_view', label: '🐞 檢視問題與瑕疵 (issue_view)', group: '瑕疵與測試' },
-      { key: 'issue_create', label: '🐛 提報 Bug 瑕疵 (issue_create)', group: '瑕疵與測試' },
-      { key: 'issue_edit', label: '✏️ 編輯問題記錄 (issue_edit)', group: '瑕疵與測試' },
-      { key: 'issue_delete', label: '🗑️ 刪除問題記錄 (issue_delete)', group: '瑕疵與測試' },
-      { key: 'issue_comment', label: '💬 發表問題回覆 (issue_comment)', group: '瑕疵與測試' }
-    ];
-
     function buildPermMatrixHtml(prefix, selectedPerms = []) {
-      const groups = ['總覽與畫板', '成員與組織', '客戶與專案', '甘特與排程', '工時與任務', '財務與薪資', '瑕疵與測試'];
-      const set = new Set(selectedPerms);
-
-      return groups.map(grp => {
-        const items = ALL_SYSTEM_PERMISSIONS.filter(p => p.group === grp);
-        return `
-          <div style="background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-              <span style="font-weight:700; font-size:12px; color:#1e3a8a;">${grp}</span>
-              <button type="button" class="btn btn-secondary btn-xs" onclick="toggleDeptGroupCheckboxes('${prefix}', '${grp}', true)">全選</button>
-            </div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              ${items.map(item => `
-                <label style="display:flex; align-items:center; gap:4px; font-size:12px; cursor:pointer; background:#f8fafc; padding:3px 8px; border-radius:4px; border:1px solid #e2e8f0;">
-                  <input type="checkbox" class="${prefix}-matrix-chk" data-group="${grp}" value="${item.key}" ${set.has(item.key) ? 'checked' : ''}>
-                  <span>${item.label}</span>
-                </label>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }).join('');
+      return '';
     }
 
     function toggleDeptGroupCheckboxes(prefix, groupName, isCheck) {
-      const chks = document.querySelectorAll(`input.${prefix}-matrix-chk[data-group="${groupName}"]`);
-      chks.forEach(cb => cb.checked = isCheck);
+      // Legacy fallback
     }
 
     function openDepartmentModal(id = null) {
       document.getElementById('form-dept-id').value = id || '';
       const titleEl = document.getElementById('modal-dept-title');
       const delBtn = document.getElementById('btn-delete-dept');
-      if (titleEl) titleEl.innerText = id ? '🏛️ 編輯部門組織與獨立權限矩陣' : '🏛️ 新增部門組織與獨立權限矩陣';
+      if (titleEl) titleEl.innerText = id ? '🏛️ 編輯部門組織與主管設定' : '🏛️ 新增部門組織與主管設定';
       if (delBtn) delBtn.style.display = id ? 'inline-block' : 'none';
 
       const mgrSelect = document.getElementById('form-dept-manager');
@@ -2134,23 +2057,13 @@
         document.getElementById('form-dept-name').value = dept.name || '';
         if (mgrSelect) mgrSelect.value = dept.managerId || '';
         document.getElementById('form-dept-desc').value = dept.description || '';
-        
-        document.getElementById('dept-perm-matrix-mgr').innerHTML = buildPermMatrixHtml('dept-mgr', dept.managerPermissions || []);
-        document.getElementById('dept-perm-matrix-emp').innerHTML = buildPermMatrixHtml('dept-emp', dept.employeePermissions || []);
       } else {
         document.getElementById('form-dept-code').value = '';
         document.getElementById('form-dept-name').value = '';
         if (mgrSelect && state.members[0]) mgrSelect.value = state.members[0].id;
         document.getElementById('form-dept-desc').value = '';
-
-        const defaultMgrPerms = ['dashboard_view', 'member_view', 'proj_view', 'gantt_view', 'gantt_add_phase', 'gantt_add_task', 'gantt_drag', 'worklog_view', 'worklog_create', 'worklog_edit', 'task_view', 'task_create', 'task_edit', 'task_schedule_edit', 'task_complete_permission', 'issue_view', 'issue_create', 'issue_edit', 'issue_comment', 'dept_view', 'salary_view'];
-        const defaultEmpPerms = ['dashboard_view', 'proj_view', 'gantt_view', 'gantt_drag', 'worklog_view', 'worklog_create', 'worklog_edit', 'task_view', 'task_edit', 'issue_view', 'issue_create', 'issue_comment'];
-
-        document.getElementById('dept-perm-matrix-mgr').innerHTML = buildPermMatrixHtml('dept-mgr', defaultMgrPerms);
-        document.getElementById('dept-perm-matrix-emp').innerHTML = buildPermMatrixHtml('dept-emp', defaultEmpPerms);
       }
 
-      switchDeptPermTab('mgr');
       openModal('modal-department');
     }
 
@@ -2168,12 +2081,6 @@
         return;
       }
 
-      const mgrPermChks = document.querySelectorAll('input.dept-mgr-matrix-chk:checked');
-      const managerPermissions = Array.from(mgrPermChks).map(cb => cb.value);
-
-      const empPermChks = document.querySelectorAll('input.dept-emp-matrix-chk:checked');
-      const employeePermissions = Array.from(empPermChks).map(cb => cb.value);
-
       if (!state.departments) state.departments = [];
 
       if (id) {
@@ -2185,8 +2092,6 @@
           dept.managerId = managerId;
           dept.managerName = managerName;
           dept.description = description;
-          dept.managerPermissions = managerPermissions;
-          dept.employeePermissions = employeePermissions;
 
           // Update member departmentName references
           (state.members || []).forEach(m => {
@@ -2195,7 +2100,7 @@
             }
           });
         }
-        showToast(`部門「${name}」已成功更新！`);
+        showToast(`部門「${name}」主管與設定已成功更新！`);
       } else {
         const newDept = {
           id: 'dept-' + Date.now(),
@@ -2203,9 +2108,7 @@
           name,
           managerId,
           managerName,
-          description,
-          managerPermissions,
-          employeePermissions
+          description
         };
         state.departments.push(newDept);
         showToast(`已成功建立部門「${name}」！`);
