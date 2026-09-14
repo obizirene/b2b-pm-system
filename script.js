@@ -185,18 +185,81 @@
           isAdmin: true,
           description: '全功能最高管理員權限，擁有全系統所有模組與管理功能',
           responsibilities: '系統日常維護、資料庫備份與最高階授權（全部權限開啟）',
-          permissions: ['dashboard_view', 'member_view', 'member_create', 'member_edit', 'member_delete', 'role_view', 'role_edit', 'client_view', 'client_create', 'client_edit', 'client_delete', 'proj_view', 'proj_create', 'proj_edit', 'proj_delete', 'gantt_view', 'gantt_add_phase', 'gantt_add_task', 'gantt_drag', 'gantt_delete', 'gantt_export', 'worklog_view', 'worklog_create', 'worklog_edit', 'worklog_delete', 'task_view', 'task_create', 'task_edit', 'task_schedule_edit', 'task_complete_permission', 'task_delete', 'issue_view', 'issue_create', 'issue_edit', 'issue_delete', 'issue_comment']
+          permissions: ['dashboard_view', 'member_view', 'member_create', 'member_edit', 'member_delete', 'role_view', 'role_edit', 'client_view', 'client_create', 'client_edit', 'client_delete', 'proj_view', 'proj_create', 'proj_edit', 'proj_delete', 'gantt_view', 'gantt_add_phase', 'gantt_add_task', 'gantt_drag', 'gantt_delete', 'gantt_export', 'worklog_view', 'worklog_create', 'worklog_edit', 'worklog_delete', 'task_view', 'task_create', 'task_edit', 'task_schedule_edit', 'task_complete_permission', 'task_delete', 'issue_view', 'issue_create', 'issue_edit', 'issue_delete', 'issue_comment', 'dept_view', 'dept_edit', 'salary_view', 'salary_edit']
+        }
+      ],
+
+      // Departments Organization Structure & Permissions Matrix
+      departments: [
+        {
+          id: 'dept-rd',
+          code: 'RD',
+          name: '研發部 (R&D Department)',
+          managerId: 'user-4',
+          managerName: '黃系統架構師 (Kevin Huang)',
+          description: '負責產品核心系統架構開發、API設計與新技術研發實作',
+          managerPermissions: [
+            'dashboard_view', 'member_view', 'proj_view', 'gantt_view', 'gantt_add_phase', 
+            'gantt_add_task', 'gantt_drag', 'worklog_view', 'worklog_create', 'worklog_edit', 
+            'worklog_delete', 'task_view', 'task_create', 'task_edit', 'task_schedule_edit', 
+            'task_complete_permission', 'issue_view', 'issue_create', 'issue_edit', 'issue_delete', 
+            'issue_comment', 'dept_view', 'salary_view'
+          ],
+          employeePermissions: [
+            'dashboard_view', 'proj_view', 'gantt_view', 'gantt_drag', 'worklog_view', 
+            'worklog_create', 'worklog_edit', 'task_view', 'task_edit', 'issue_view', 
+            'issue_create', 'issue_comment'
+          ]
+        },
+        {
+          id: 'dept-pmo',
+          code: 'PMO',
+          name: '專案管理部 (PMO Department)',
+          managerId: 'user-1',
+          managerName: '陳專案經理 (Alex Chen)',
+          description: '負責跨部門專案排程管控、資源分攤、業主對接與驗收審核',
+          managerPermissions: [
+            'dashboard_view', 'member_view', 'member_create', 'member_edit', 'role_view', 
+            'client_view', 'client_create', 'client_edit', 'proj_view', 'proj_create', 
+            'proj_edit', 'gantt_view', 'gantt_add_phase', 'gantt_add_task', 'gantt_drag', 
+            'gantt_delete', 'worklog_view', 'worklog_create', 'worklog_edit', 'worklog_delete', 
+            'task_view', 'task_create', 'task_edit', 'task_schedule_edit', 'task_complete_permission', 
+            'task_delete', 'issue_view', 'issue_create', 'issue_edit', 'issue_delete', 
+            'issue_comment', 'dept_view', 'dept_edit', 'salary_view', 'salary_edit'
+          ],
+          employeePermissions: [
+            'dashboard_view', 'member_view', 'client_view', 'proj_view', 'gantt_view', 
+            'gantt_add_task', 'worklog_view', 'worklog_create', 'task_view', 'task_edit', 
+            'issue_view', 'issue_create'
+          ]
+        },
+        {
+          id: 'dept-design',
+          code: 'DESIGN',
+          name: '設計部 (Design Department)',
+          managerId: 'user-3',
+          managerName: '王UI設計師 (David Wang)',
+          description: '負責使用者體驗 (UX) 規劃、視覺介面 (UI) 設計與繪製原型切版',
+          managerPermissions: [
+            'dashboard_view', 'member_view', 'proj_view', 'gantt_view', 'gantt_add_task', 
+            'worklog_view', 'worklog_create', 'worklog_edit', 'task_view', 'task_create', 
+            'task_edit', 'task_schedule_edit', 'issue_view', 'issue_create', 'issue_edit'
+          ],
+          employeePermissions: [
+            'dashboard_view', 'proj_view', 'gantt_view', 'worklog_view', 'worklog_create', 
+            'task_view', 'task_edit', 'issue_view', 'issue_create'
+          ]
         }
       ],
 
       // Members (Matching Video)
       members: [
-        { id: 'user-admin', name: 'irene', role: '專案經理 (PM)', email: 'obilirene@gmail.com', phone: '+886 912-111-222' },
-        { id: 'user-1', name: '陳專案經理 (Alex Chen)', role: '專案經理 (PM)', email: 'alex.chen@company.com', phone: '+886 922-222-333' },
-        { id: 'user-2', name: '林資深工程師 (Sarah Lin)', role: '全端工程師', email: 'sarah.lin@company.com', phone: '+886 933-333-444' },
-        { id: 'user-3', name: '王UI設計師 (David Wang)', role: 'UI/UX 設計師', email: 'david.wang@company.com', phone: '+886 933-444-555' },
-        { id: 'user-4', name: '黃系統架構師 (Kevin Huang)', role: '全端工程師', email: 'kevin.huang@company.com', phone: '+886 944-555-666' },
-        { id: 'user-5', name: 'Irene', role: '全端工程師', email: 'ccshcm20@gmail.com', phone: '+886 988-777-666' }
+        { id: 'user-admin', name: 'irene', role: '專案經理 (PM)', departmentId: 'dept-pmo', departmentName: '專案管理部 (PMO Department)', email: 'obilirene@gmail.com', phone: '+886 912-111-222', monthlySalary: 95000, hourlyRate: 594, effectiveDate: '2026-01-01', salaryNotes: '資深專案主管' },
+        { id: 'user-1', name: '陳專案經理 (Alex Chen)', role: '專案經理 (PM)', departmentId: 'dept-pmo', departmentName: '專案管理部 (PMO Department)', email: 'alex.chen@company.com', phone: '+886 922-222-333', monthlySalary: 85000, hourlyRate: 531, effectiveDate: '2026-01-01', salaryNotes: 'PMO 部門主管' },
+        { id: 'user-2', name: '林資深工程師 (Sarah Lin)', role: '全端工程師', departmentId: 'dept-rd', departmentName: '研發部 (R&D Department)', email: 'sarah.lin@company.com', phone: '+886 933-333-444', monthlySalary: 75000, hourlyRate: 469, effectiveDate: '2026-01-01', salaryNotes: '資深全端工程師' },
+        { id: 'user-3', name: '王UI設計師 (David Wang)', role: 'UI/UX 設計師', departmentId: 'dept-design', departmentName: '設計部 (Design Department)', email: 'david.wang@company.com', phone: '+886 933-444-555', monthlySalary: 65000, hourlyRate: 406, effectiveDate: '2026-01-01', salaryNotes: '設計部主管' },
+        { id: 'user-4', name: '黃系統架構師 (Kevin Huang)', role: '全端工程師', departmentId: 'dept-rd', departmentName: '研發部 (R&D Department)', email: 'kevin.huang@company.com', phone: '+886 944-555-666', monthlySalary: 90000, hourlyRate: 563, effectiveDate: '2026-01-01', salaryNotes: '研發部主管' },
+        { id: 'user-5', name: 'Irene', role: '全端工程師', departmentId: 'dept-rd', departmentName: '研發部 (R&D Department)', email: 'ccshcm20@gmail.com', phone: '+886 988-777-666', monthlySalary: 70000, hourlyRate: 438, effectiveDate: '2026-01-01', salaryNotes: '全端工程師' }
       ],
 
       // Clients (Matching Video: AAA & BBB)
@@ -1087,7 +1150,9 @@
       worklogs: 'worklog_view',
       tasks: 'task_view',
       issues: 'issue_view',
-      holidays: 'role_view'
+      holidays: 'role_view',
+      departments: 'dept_view',
+      salaries: 'salary_view'
     };
 
     function hasPermission(permissionKey) {
@@ -1095,17 +1160,43 @@
         const role = (state.roles || []).find(r => r && (r.id === state.simulatedRoleId || r.name === state.simulatedRoleId));
         if (!role) return true;
         if (isSystemAdminRole(role)) return true;
-        const perms = Array.isArray(role.permissions) ? role.permissions : (role.permissions ? Object.values(role.permissions) : []);
+        let perms = Array.isArray(role.permissions) ? role.permissions : (role.permissions ? Object.values(role.permissions) : []);
+        
+        // Dynamic Department Manager/Employee Permissions in Simulator
+        const simMember = (state.members || []).find(m => m.role === role.name || m.id === state.simulatedRoleId);
+        if (simMember && simMember.departmentId && state.departments) {
+          const dept = state.departments.find(d => d.id === simMember.departmentId || d.name === simMember.departmentId);
+          if (dept) {
+            const isManager = (dept.managerId === simMember.id || dept.managerName === simMember.name);
+            const deptPerms = isManager ? (dept.managerPermissions || []) : (dept.employeePermissions || []);
+            perms = [...new Set([...perms, ...deptPerms])];
+          }
+        }
         return perms.includes(permissionKey);
       }
+
       if (currentAuthUser && currentAuthUser.memberInfo) {
-        const roleName = currentAuthUser.memberInfo.role;
+        const member = currentAuthUser.memberInfo;
+        const roleName = member.role;
         const role = (state.roles || []).find(r => r && (r.name === roleName || r.id === roleName));
+        if (role && isSystemAdminRole(role)) return true;
+
+        let perms = [];
         if (role) {
-          if (isSystemAdminRole(role)) return true;
-          const perms = Array.isArray(role.permissions) ? role.permissions : (role.permissions ? Object.values(role.permissions) : []);
-          return perms.includes(permissionKey);
+          perms = Array.isArray(role.permissions) ? role.permissions : (role.permissions ? Object.values(role.permissions) : []);
         }
+
+        // Dynamic Department Manager vs Department Employee Permissions
+        if (member.departmentId && state.departments) {
+          const dept = state.departments.find(d => d.id === member.departmentId || d.name === member.departmentId);
+          if (dept) {
+            const isManager = (dept.managerId === member.id || dept.managerName === member.name);
+            const deptPerms = isManager ? (dept.managerPermissions || []) : (dept.employeePermissions || []);
+            perms = [...new Set([...perms, ...deptPerms])];
+          }
+        }
+
+        return perms.includes(permissionKey);
       }
       return true;
     }
@@ -1254,6 +1345,8 @@
       // 1. Sidebar module buttons visibility
       const btnDashboard = document.getElementById('nav-btn-dashboard');
       const btnMembers = document.getElementById('nav-btn-members');
+      const btnDepartments = document.getElementById('nav-btn-departments');
+      const btnSalaries = document.getElementById('nav-btn-salaries');
       const btnRoles = document.getElementById('nav-btn-roles');
       const btnClients = document.getElementById('nav-btn-clients');
       const btnProjects = document.getElementById('nav-btn-projects');
@@ -1264,6 +1357,8 @@
 
       const canDashboard = hasPermission('dashboard_view');
       const canMembers = hasPermission('member_view');
+      const canDepartments = hasPermission('dept_view');
+      const canSalaries = hasPermission('salary_view');
       const canRoles = hasPermission('role_view');
       const canClients = hasPermission('client_view');
       const canProjects = hasPermission('proj_view');
@@ -1274,6 +1369,8 @@
 
       if (btnDashboard) btnDashboard.style.display = canDashboard ? '' : 'none';
       if (btnMembers) btnMembers.style.display = canMembers ? '' : 'none';
+      if (btnDepartments) btnDepartments.style.display = canDepartments ? '' : 'none';
+      if (btnSalaries) btnSalaries.style.display = canSalaries ? '' : 'none';
       if (btnRoles) btnRoles.style.display = canRoles ? '' : 'none';
       if (btnClients) btnClients.style.display = canClients ? '' : 'none';
       if (btnProjects) btnProjects.style.display = canProjects ? '' : 'none';
@@ -1284,7 +1381,7 @@
 
       // 2. Section titles in Tier 1 & Tier 2
       const secInternal = document.getElementById('nav-section-internal');
-      if (secInternal) secInternal.style.display = (canMembers || canRoles || canClients) ? '' : 'none';
+      if (secInternal) secInternal.style.display = (canMembers || canDepartments || canSalaries || canRoles || canClients) ? '' : 'none';
 
       const secProject = document.getElementById('nav-section-project');
       if (secProject) secProject.style.display = canProjects ? '' : 'none';
@@ -1301,7 +1398,7 @@
       }
 
       // 3. Current active page permission check
-      const allPages = ['dashboard', 'members', 'roles', 'clients', 'projects', 'gantt', 'worklogs', 'tasks', 'issues'];
+      const allPages = ['dashboard', 'members', 'roles', 'clients', 'projects', 'gantt', 'worklogs', 'tasks', 'issues', 'holidays', 'departments', 'salaries'];
       let activePage = allPages.find(p => {
         const el = document.getElementById('page-' + p);
         return el && el.style.display !== 'none';
@@ -1320,6 +1417,9 @@
       }
 
       // 4. Action buttons on pages
+      const btnAddDept = document.getElementById('btn-add-department');
+      if (btnAddDept) btnAddDept.style.display = hasPermission('dept_edit') ? '' : 'none';
+
       const btnAddProjDash = document.getElementById('btn-add-project-dash');
       if (btnAddProjDash) btnAddProjDash.style.display = hasPermission('proj_create') ? '' : 'none';
 
@@ -1416,7 +1516,7 @@
       let clean = pathname.trim().replace(/^\/+|\/+$/g, '').toLowerCase();
       if (!clean || clean === 'index.html' || clean === 'dashboard') return 'dashboard';
 
-      const validPages = ['dashboard', 'members', 'roles', 'clients', 'projects', 'gantt', 'worklogs', 'tasks', 'issues', 'holidays'];
+      const validPages = ['dashboard', 'members', 'roles', 'clients', 'projects', 'gantt', 'worklogs', 'tasks', 'issues', 'holidays', 'departments', 'salaries'];
       if (validPages.includes(clean)) return clean;
 
       // 友好別名對應 (如 /board -> tasks)
@@ -1428,6 +1528,8 @@
       if (clean === 'client' || clean === 'customer') return 'clients';
       if (clean === 'project' || clean === 'proj') return 'projects';
       if (clean === 'holiday' || clean === 'calendar') return 'holidays';
+      if (clean === 'department' || clean === 'dept' || clean === 'departments') return 'departments';
+      if (clean === 'salary' || clean === 'salaries' || clean === 'cost') return 'salaries';
 
       return null;
     }
@@ -1453,7 +1555,7 @@
       }
       state.currentPage = pageId;
 
-      if (['dashboard', 'members', 'roles', 'clients', 'projects', 'holidays'].includes(pageId)) {
+      if (['dashboard', 'members', 'roles', 'clients', 'projects', 'holidays', 'departments', 'salaries'].includes(pageId)) {
         if (currentSidebarTier === 2) {
           currentSidebarTier = 1;
           const tier1 = document.getElementById('sidebar-tier-1');
@@ -1472,7 +1574,7 @@
         }
       }
 
-      const pages = ['dashboard', 'members', 'roles', 'clients', 'projects', 'gantt', 'worklogs', 'tasks', 'issues', 'holidays'];
+      const pages = ['dashboard', 'members', 'roles', 'clients', 'projects', 'gantt', 'worklogs', 'tasks', 'issues', 'holidays', 'departments', 'salaries'];
       pages.forEach(p => {
         const el = document.getElementById('page-' + p);
         if (el) el.style.display = 'none';
@@ -1490,6 +1592,8 @@
       if (pageId === 'worklogs') renderWorkLogsTable();
       if (pageId === 'issues') renderIssuesTable();
       if (pageId === 'holidays') renderHolidaysTable();
+      if (pageId === 'departments') renderDepartmentsTable();
+      if (pageId === 'salaries') renderSalariesPage();
 
       if (push) {
         updateBrowserUrl(pageId);
@@ -1537,6 +1641,8 @@
       renderTasksTable();
       renderIssuesTable();
       renderHolidaysTable();
+      renderDepartmentsTable();
+      renderSalariesPage();
 
       if (!skipCloudSync) {
         syncToFirebase();
@@ -1579,6 +1685,10 @@
       document.getElementById('badge-projects-count').innerText = state.projects.length;
       const badgeHolidays = document.getElementById('badge-holidays-count');
       if (badgeHolidays) badgeHolidays.innerText = (state.holidays || []).length;
+      const badgeDepts = document.getElementById('badge-departments-count');
+      if (badgeDepts) badgeDepts.innerText = (state.departments || []).length;
+      const badgeSalaries = document.getElementById('badge-salaries-count');
+      if (badgeSalaries) badgeSalaries.innerText = (state.members || []).length;
       const badgeTasks = document.getElementById('badge-tasks-count');
       const badgeWorklogs = document.getElementById('badge-worklogs-count');
       const badgeIssues = document.getElementById('badge-issues-count');
@@ -1730,14 +1840,24 @@
       if (!tbody) return;
       tbody.innerHTML = state.members.map(m => {
         const assignedProjects = state.projects.filter(p => (p.teamMembers || []).includes(m.id));
+        const dept = (state.departments || []).find(d => d.id === m.departmentId || d.name === m.departmentId);
+        const isDeptManager = dept && (dept.managerId === m.id || dept.managerName === m.name);
+        const deptBadgeHtml = dept ? 
+          `<span class="badge ${isDeptManager ? 'badge-warning' : 'badge-info'}" style="font-size:11px; font-weight:700;">${isDeptManager ? '👑 部門主管' : '👤 部門成員'} (${dept.code})</span><div style="font-size:11px; color:#64748b; margin-top:2px;">${dept.name}</div>` : 
+          '<span style="color:#94a3b8; font-size:12px;">未分派部門</span>';
+
         return `
           <tr>
             <td>
               <div style="font-weight:700; color:#0f172a;">${m.name}</div>
               <div style="font-size:11px; color:#94a3b8; font-family:monospace;">ID: ${m.id}</div>
             </td>
+            <td>${deptBadgeHtml}</td>
             <td>
               <span class="badge badge-purple" style="font-weight:700;">${m.role}</span>
+            </td>
+            <td style="font-family:monospace; font-weight:700; color:#047857;">
+              NT$ ${(Number(m.monthlySalary) || 60000).toLocaleString()} <small style="color:#64748b; font-weight:normal;">/月</small>
             </td>
             <td style="font-family:monospace; color:#2563eb;">${m.email}</td>
             <td style="font-family:monospace; color:#475569;">${m.phone || '-'}</td>
@@ -1762,21 +1882,33 @@
         roleSelect.innerHTML = (state.roles || []).map(r => `<option value="${r.name}">${r.name}</option>`).join('');
       }
 
+      const deptSelect = document.getElementById('form-member-department');
+      if (deptSelect) {
+        deptSelect.innerHTML = '<option value="">-- 未指派部門 --</option>' +
+          (state.departments || []).map(d => `<option value="${d.id}">${d.name} (${d.code})</option>`).join('');
+      }
+
       if (id) {
         const m = state.members.find(x => x.id === id);
         if (m) {
           document.getElementById('form-member-name').value = m.name;
           if (roleSelect) roleSelect.value = m.role;
+          if (deptSelect) deptSelect.value = m.departmentId || '';
           document.getElementById('form-member-email').value = m.email;
           document.getElementById('form-member-phone').value = m.phone || '';
+          const salEl = document.getElementById('form-member-salary');
+          if (salEl) salEl.value = m.monthlySalary || 60000;
         }
       } else {
         document.getElementById('form-member-name').value = '';
         if (roleSelect && state.roles && state.roles[0]) {
           roleSelect.value = state.roles[0].name;
         }
+        if (deptSelect) deptSelect.value = '';
         document.getElementById('form-member-email').value = '';
         document.getElementById('form-member-phone').value = '';
+        const salEl = document.getElementById('form-member-salary');
+        if (salEl) salEl.value = 60000;
       }
       openModal('modal-member');
     }
@@ -1785,6 +1917,11 @@
       const id = document.getElementById('form-member-id').value;
       const name = document.getElementById('form-member-name').value.trim();
       const role = document.getElementById('form-member-role').value;
+      const departmentId = document.getElementById('form-member-department')?.value || '';
+      const deptObj = (state.departments || []).find(d => d.id === departmentId);
+      const departmentName = deptObj ? deptObj.name : '';
+      const monthlySalary = Number(document.getElementById('form-member-salary')?.value) || 60000;
+      const hourlyRate = Math.round(monthlySalary / 160);
       const email = document.getElementById('form-member-email').value.trim();
       const phone = document.getElementById('form-member-phone').value.trim();
 
@@ -1798,6 +1935,10 @@
         if (m) {
           m.name = name;
           m.role = role;
+          m.departmentId = departmentId;
+          m.departmentName = departmentName;
+          m.monthlySalary = monthlySalary;
+          m.hourlyRate = hourlyRate;
           m.email = email;
           m.phone = phone;
         }
@@ -1805,7 +1946,7 @@
       } else {
         state.members.push({
           id: 'user-' + Date.now(),
-          name, role, email, phone
+          name, role, departmentId, departmentName, monthlySalary, hourlyRate, email, phone, effectiveDate: TODAY, salaryNotes: ''
         });
         showToast('已新增團隊成員！');
       }
@@ -1821,6 +1962,533 @@
         renderAll();
         showToast('成員已刪除');
       }
+    }
+
+    // ================= 2.1 DEPARTMENT MANAGEMENT (部門管理) =================
+    let currentDeptPermTab = 'mgr'; // 'mgr' or 'emp'
+
+    function renderDepartmentsTable() {
+      const tbody = document.getElementById('departments-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = (state.departments || []).map(dept => {
+        const managerName = dept.managerName || (state.members.find(m => m.id === dept.managerId)?.name || '未指定');
+        const deptMembers = (state.members || []).filter(m => m.departmentId === dept.id || m.departmentName === dept.name);
+        const mgrPermCount = (dept.managerPermissions || []).length;
+        const empPermCount = (dept.employeePermissions || []).length;
+
+        return `
+          <tr>
+            <td>
+              <div style="font-weight:700; color:#0f172a; font-size:14px;">${dept.name}</div>
+              <div style="font-size:11px; color:#2563eb; font-family:monospace; font-weight:700;">代碼: ${dept.code}</div>
+            </td>
+            <td>
+              <span class="badge badge-warning" style="font-weight:700;">👑 ${managerName}</span>
+            </td>
+            <td>
+              <span class="badge badge-info" style="font-size:12px;">👥 ${deptMembers.length} 位成員</span>
+            </td>
+            <td style="font-size:12px; color:#475569; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              ${dept.description || '無特別說明'}
+            </td>
+            <td>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <span class="badge badge-purple" style="font-size:11px;">👑 主管特權: ${mgrPermCount} 項</span>
+                <span class="badge badge-slate" style="font-size:11px;">👤 員工權限: ${empPermCount} 項</span>
+              </div>
+            </td>
+            <td style="text-align: right;">
+              ${hasPermission('dept_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openDepartmentModal('${dept.id}')">編輯部門與權限</button>` : ''}
+              ${hasPermission('dept_edit') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteDepartment('${dept.id}')">刪除</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function switchDeptPermTab(tabType) {
+      currentDeptPermTab = tabType;
+      const tabMgr = document.getElementById('tab-dept-perm-mgr');
+      const tabEmp = document.getElementById('tab-dept-perm-emp');
+      const matrixMgr = document.getElementById('dept-perm-matrix-mgr');
+      const matrixEmp = document.getElementById('dept-perm-matrix-emp');
+
+      if (tabType === 'mgr') {
+        if (tabMgr) tabMgr.classList.add('active');
+        if (tabEmp) tabEmp.classList.remove('active');
+        if (matrixMgr) matrixMgr.style.display = 'flex';
+        if (matrixEmp) matrixEmp.style.display = 'none';
+      } else {
+        if (tabEmp) tabEmp.classList.add('active');
+        if (tabMgr) tabMgr.classList.remove('active');
+        if (matrixEmp) matrixEmp.style.display = 'flex';
+        if (matrixMgr) matrixMgr.style.display = 'none';
+      }
+    }
+
+    const ALL_SYSTEM_PERMISSIONS = [
+      { key: 'dashboard_view', label: '📊 檢視專案總覽 (dashboard_view)', group: '總覽與畫板' },
+      { key: 'member_view', label: '👥 檢視員工列表 (member_view)', group: '成員與組織' },
+      { key: 'member_create', label: '➕ 新增員工 (member_create)', group: '成員與組織' },
+      { key: 'member_edit', label: '✏️ 編輯員工 (member_edit)', group: '成員與組織' },
+      { key: 'member_delete', label: '🗑️ 刪除員工 (member_delete)', group: '成員與組織' },
+      { key: 'dept_view', label: '🏛️ 檢視部門管理 (dept_view)', group: '成員與組織' },
+      { key: 'dept_edit', label: '⚙️ 部門權限維護 (dept_edit)', group: '成員與組織' },
+      { key: 'role_view', label: '🛡️ 檢視角色矩陣 (role_view)', group: '成員與組織' },
+      { key: 'role_edit', label: '✏️ 編輯角色矩陣 (role_edit)', group: '成員與組織' },
+      { key: 'client_view', label: '🏢 檢視客戶列表 (client_view)', group: '客戶與專案' },
+      { key: 'client_create', label: '➕ 新增客戶 (client_create)', group: '客戶與專案' },
+      { key: 'client_edit', label: '✏️ 編輯客戶 (client_edit)', group: '客戶與專案' },
+      { key: 'client_delete', label: '🗑️ 刪除客戶 (client_delete)', group: '客戶與專案' },
+      { key: 'proj_view', label: '📁 檢視專案清單 (proj_view)', group: '客戶與專案' },
+      { key: 'proj_create', label: '➕ 建立主專案 (proj_create)', group: '客戶與專案' },
+      { key: 'proj_edit', label: '✏️ 編輯主專案 (proj_edit)', group: '客戶與專案' },
+      { key: 'proj_delete', label: '🗑️ 刪除主專案 (proj_delete)', group: '客戶與專案' },
+      { key: 'gantt_view', label: '📅 檢視甘特圖 (gantt_view)', group: '甘特與排程' },
+      { key: 'gantt_add_phase', label: '➕ 新增第一階階段 (gantt_add_phase)', group: '甘特與排程' },
+      { key: 'gantt_add_task', label: '➕ 新增功能/任務 (gantt_add_task)', group: '甘特與排程' },
+      { key: 'gantt_drag', label: '↔️ 拖曳微調排程 (gantt_drag)', group: '甘特與排程' },
+      { key: 'gantt_delete', label: '🗑️ 刪除排程節點 (gantt_delete)', group: '甘特與排程' },
+      { key: 'gantt_export', label: '📤 匯出 CSV 報表 (gantt_export)', group: '甘特與排程' },
+      { key: 'worklog_view', label: '⏱️ 檢視工時日誌 (worklog_view)', group: '工時與任務' },
+      { key: 'worklog_create', label: '✍️ 填寫工時日誌 (worklog_create)', group: '工時與任務' },
+      { key: 'worklog_edit', label: '✏️ 編輯工時日誌 (worklog_edit)', group: '工時與任務' },
+      { key: 'worklog_delete', label: '🗑️ 刪除工時日誌 (worklog_delete)', group: '工時與任務' },
+      { key: 'task_view', label: '📋 檢視任務追蹤 (task_view)', group: '工時與任務' },
+      { key: 'task_create', label: '➕ 建立新任務 (task_create)', group: '工時與任務' },
+      { key: 'task_edit', label: '✏️ 編輯任務內容 (task_edit)', group: '工時與任務' },
+      { key: 'task_schedule_edit', label: '📅 編輯預估排程工時 (task_schedule_edit)', group: '工時與任務' },
+      { key: 'task_complete_permission', label: '🎉 審核驗收/切換已完成 (task_complete_permission)', group: '工時與任務' },
+      { key: 'task_delete', label: '🗑️ 刪除任務 (task_delete)', group: '工時與任務' },
+      { key: 'salary_view', label: '💰 檢視薪資與成本 (salary_view)', group: '財務與薪資' },
+      { key: 'salary_edit', label: '✏️ 編輯員工薪資 (salary_edit)', group: '財務與薪資' },
+      { key: 'issue_view', label: '🐞 檢視問題與瑕疵 (issue_view)', group: '瑕疵與測試' },
+      { key: 'issue_create', label: '🐛 提報 Bug 瑕疵 (issue_create)', group: '瑕疵與測試' },
+      { key: 'issue_edit', label: '✏️ 編輯問題記錄 (issue_edit)', group: '瑕疵與測試' },
+      { key: 'issue_delete', label: '🗑️ 刪除問題記錄 (issue_delete)', group: '瑕疵與測試' },
+      { key: 'issue_comment', label: '💬 發表問題回覆 (issue_comment)', group: '瑕疵與測試' }
+    ];
+
+    function buildPermMatrixHtml(prefix, selectedPerms = []) {
+      const groups = ['總覽與畫板', '成員與組織', '客戶與專案', '甘特與排程', '工時與任務', '財務與薪資', '瑕疵與測試'];
+      const set = new Set(selectedPerms);
+
+      return groups.map(grp => {
+        const items = ALL_SYSTEM_PERMISSIONS.filter(p => p.group === grp);
+        return `
+          <div style="background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-weight:700; font-size:12px; color:#1e3a8a;">${grp}</span>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="toggleDeptGroupCheckboxes('${prefix}', '${grp}', true)">全選</button>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              ${items.map(item => `
+                <label style="display:flex; align-items:center; gap:4px; font-size:12px; cursor:pointer; background:#f8fafc; padding:3px 8px; border-radius:4px; border:1px solid #e2e8f0;">
+                  <input type="checkbox" class="${prefix}-matrix-chk" data-group="${grp}" value="${item.key}" ${set.has(item.key) ? 'checked' : ''}>
+                  <span>${item.label}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleDeptGroupCheckboxes(prefix, groupName, isCheck) {
+      const chks = document.querySelectorAll(`input.${prefix}-matrix-chk[data-group="${groupName}"]`);
+      chks.forEach(cb => cb.checked = isCheck);
+    }
+
+    function openDepartmentModal(id = null) {
+      document.getElementById('form-dept-id').value = id || '';
+      const titleEl = document.getElementById('modal-dept-title');
+      const delBtn = document.getElementById('btn-delete-dept');
+      if (titleEl) titleEl.innerText = id ? '🏛️ 編輯部門組織與獨立權限矩陣' : '🏛️ 新增部門組織與獨立權限矩陣';
+      if (delBtn) delBtn.style.display = id ? 'inline-block' : 'none';
+
+      const mgrSelect = document.getElementById('form-dept-manager');
+      if (mgrSelect) {
+        mgrSelect.innerHTML = '<option value="">-- 未指定主管 --</option>' + 
+          (state.members || []).map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+      }
+
+      let dept = null;
+      if (id) {
+        dept = (state.departments || []).find(d => d.id === id);
+      }
+
+      if (dept) {
+        document.getElementById('form-dept-code').value = dept.code || '';
+        document.getElementById('form-dept-name').value = dept.name || '';
+        if (mgrSelect) mgrSelect.value = dept.managerId || '';
+        document.getElementById('form-dept-desc').value = dept.description || '';
+        
+        document.getElementById('dept-perm-matrix-mgr').innerHTML = buildPermMatrixHtml('dept-mgr', dept.managerPermissions || []);
+        document.getElementById('dept-perm-matrix-emp').innerHTML = buildPermMatrixHtml('dept-emp', dept.employeePermissions || []);
+      } else {
+        document.getElementById('form-dept-code').value = '';
+        document.getElementById('form-dept-name').value = '';
+        if (mgrSelect && state.members[0]) mgrSelect.value = state.members[0].id;
+        document.getElementById('form-dept-desc').value = '';
+
+        const defaultMgrPerms = ['dashboard_view', 'member_view', 'proj_view', 'gantt_view', 'gantt_add_phase', 'gantt_add_task', 'gantt_drag', 'worklog_view', 'worklog_create', 'worklog_edit', 'task_view', 'task_create', 'task_edit', 'task_schedule_edit', 'task_complete_permission', 'issue_view', 'issue_create', 'issue_edit', 'issue_comment', 'dept_view', 'salary_view'];
+        const defaultEmpPerms = ['dashboard_view', 'proj_view', 'gantt_view', 'gantt_drag', 'worklog_view', 'worklog_create', 'worklog_edit', 'task_view', 'task_edit', 'issue_view', 'issue_create', 'issue_comment'];
+
+        document.getElementById('dept-perm-matrix-mgr').innerHTML = buildPermMatrixHtml('dept-mgr', defaultMgrPerms);
+        document.getElementById('dept-perm-matrix-emp').innerHTML = buildPermMatrixHtml('dept-emp', defaultEmpPerms);
+      }
+
+      switchDeptPermTab('mgr');
+      openModal('modal-department');
+    }
+
+    function saveDepartment() {
+      const id = document.getElementById('form-dept-id').value;
+      const code = document.getElementById('form-dept-code').value.trim();
+      const name = document.getElementById('form-dept-name').value.trim();
+      const managerId = document.getElementById('form-dept-manager')?.value || '';
+      const managerObj = (state.members || []).find(m => m.id === managerId);
+      const managerName = managerObj ? managerObj.name : '';
+      const description = document.getElementById('form-dept-desc').value.trim();
+
+      if (!code || !name) {
+        alert('請填寫部門代碼與部門名稱！');
+        return;
+      }
+
+      const mgrPermChks = document.querySelectorAll('input.dept-mgr-matrix-chk:checked');
+      const managerPermissions = Array.from(mgrPermChks).map(cb => cb.value);
+
+      const empPermChks = document.querySelectorAll('input.dept-emp-matrix-chk:checked');
+      const employeePermissions = Array.from(empPermChks).map(cb => cb.value);
+
+      if (!state.departments) state.departments = [];
+
+      if (id) {
+        const dept = state.departments.find(d => d.id === id);
+        if (dept) {
+          const oldName = dept.name;
+          dept.code = code;
+          dept.name = name;
+          dept.managerId = managerId;
+          dept.managerName = managerName;
+          dept.description = description;
+          dept.managerPermissions = managerPermissions;
+          dept.employeePermissions = employeePermissions;
+
+          // Update member departmentName references
+          (state.members || []).forEach(m => {
+            if (m.departmentId === id || m.departmentName === oldName) {
+              m.departmentName = name;
+            }
+          });
+        }
+        showToast(`部門「${name}」已成功更新！`);
+      } else {
+        const newDept = {
+          id: 'dept-' + Date.now(),
+          code,
+          name,
+          managerId,
+          managerName,
+          description,
+          managerPermissions,
+          employeePermissions
+        };
+        state.departments.push(newDept);
+        showToast(`已成功建立部門「${name}」！`);
+      }
+
+      syncToFirebase();
+      closeModal('modal-department');
+      renderAll();
+    }
+
+    function deleteDepartmentFromModal() {
+      const id = document.getElementById('form-dept-id').value;
+      if (id) deleteDepartment(id);
+    }
+
+    function deleteDepartment(id) {
+      const dept = (state.departments || []).find(d => d.id === id);
+      if (!dept) return;
+      if (confirm(`確定要刪除部門「${dept.name} (${dept.code})」嗎？`)) {
+        state.departments = state.departments.filter(d => d.id !== id);
+        (state.members || []).forEach(m => {
+          if (m.departmentId === id) {
+            m.departmentId = '';
+            m.departmentName = '';
+          }
+        });
+        syncToFirebase();
+        closeModal('modal-department');
+        renderAll();
+        showToast(`已刪除部門「${dept.name}」！`);
+      }
+    }
+
+    // ================= 2.2 SALARY & COST MANAGEMENT (薪資與成本管理) =================
+    let currentSalarySubTab = 'emp'; // 'emp', 'proj', 'dept'
+
+    function switchSalarySubTab(tabName) {
+      currentSalarySubTab = tabName;
+      ['emp', 'proj', 'dept'].forEach(t => {
+        const btn = document.getElementById('tab-salary-' + t);
+        const sec = document.getElementById('salary-subtab-' + t);
+        if (btn) btn.classList.toggle('active', t === tabName);
+        if (sec) sec.style.display = (t === tabName) ? 'block' : 'none';
+      });
+      renderSalariesPage();
+    }
+
+    function autoCalculateHourlyRate(monthlyVal) {
+      const monthly = Number(monthlyVal) || 0;
+      const hourlyInput = document.getElementById('form-salary-hourly');
+      if (hourlyInput && monthly > 0) {
+        hourlyInput.value = Math.round(monthly / 160);
+      }
+    }
+
+    function renderSalariesPage() {
+      const canView = hasPermission('salary_view');
+      const pageSalaries = document.getElementById('page-salaries');
+      if (!pageSalaries) return;
+
+      // Calculate Global KPIs
+      const members = state.members || [];
+      const totalMonthlyBudget = members.reduce((sum, m) => sum + (Number(m.monthlySalary) || 60000), 0);
+      const avgHourlyRate = members.length > 0 ? Math.round((members.reduce((sum, m) => sum + (Number(m.hourlyRate) || Math.round((Number(m.monthlySalary) || 60000)/160)), 0)) / members.length) : 375;
+
+      // Historical Total Project Labor Cost
+      let totalLaborCost = 0;
+      const projCostMap = {}; // projId -> { estHours, actHours, estCost, actCost }
+
+      (state.projects || []).forEach(p => {
+        projCostMap[p.id] = { estHours: 0, actHours: 0, estCost: 0, actCost: 0 };
+      });
+
+      (state.tasks || []).forEach(t => {
+        const pId = t.projectId;
+        if (!projCostMap[pId]) projCostMap[pId] = { estHours: 0, actHours: 0, estCost: 0, actCost: 0 };
+        
+        const estH = Number(t.estHours) || 0;
+        projCostMap[pId].estHours += estH;
+
+        // Estimate cost based on assignee
+        const assignees = getTaskAssignees(t);
+        let taskHourlyRate = 450;
+        if (assignees.length > 0) {
+          const m = members.find(x => x.name === assignees[0] || assignees[0].includes(x.name));
+          if (m) taskHourlyRate = Number(m.hourlyRate) || Math.round((Number(m.monthlySalary) || 60000) / 160);
+        }
+        projCostMap[pId].estCost += (estH * taskHourlyRate);
+      });
+
+      (state.workLogs || []).forEach(w => {
+        const t = (state.tasks || []).find(x => x.id === w.taskId);
+        const pId = t ? t.projectId : state.currentProjectId;
+        const hours = Number(w.hours) || 0;
+
+        let memberRate = 450;
+        const m = members.find(x => x.name === w.userName || x.id === w.userId);
+        if (m) {
+          memberRate = Number(m.hourlyRate) || Math.round((Number(m.monthlySalary) || 60000) / 160);
+        }
+        const cost = hours * memberRate;
+        totalLaborCost += cost;
+
+        if (projCostMap[pId]) {
+          projCostMap[pId].actHours += hours;
+          projCostMap[pId].actCost += cost;
+        }
+      });
+
+      // Find top cost project
+      let topCostProjName = '暫無紀錄';
+      let maxCost = -1;
+      Object.keys(projCostMap).forEach(pId => {
+        if (projCostMap[pId].actCost > maxCost) {
+          maxCost = projCostMap[pId].actCost;
+          topCostProjName = getProjectName(pId);
+        }
+      });
+
+      const kpiMonthly = document.getElementById('kpi-total-monthly-salary');
+      const kpiAvgRate = document.getElementById('kpi-avg-hourly-rate');
+      const kpiTotalCost = document.getElementById('kpi-total-labor-cost');
+      const kpiTopProj = document.getElementById('kpi-top-cost-project');
+
+      if (kpiMonthly) kpiMonthly.innerText = `NT$ ${totalMonthlyBudget.toLocaleString()}`;
+      if (kpiAvgRate) kpiAvgRate.innerText = `NT$ ${avgHourlyRate}/h`;
+      if (kpiTotalCost) kpiTotalCost.innerText = `NT$ ${totalLaborCost.toLocaleString()}`;
+      if (kpiTopProj) kpiTopProj.innerText = topCostProjName;
+
+      // Render Tab 1: Employee Salaries Table
+      const empTbody = document.getElementById('salaries-emp-table-body');
+      if (empTbody) {
+        if (!canView) {
+          empTbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:32px; color:#64748b;">🔒 薪資專區屬機密資料，您目前無檢視權限 (salary_view)</td></tr>`;
+        } else {
+          empTbody.innerHTML = members.map(m => {
+            const monthly = Number(m.monthlySalary) || 60000;
+            const hourly = Number(m.hourlyRate) || Math.round(monthly / 160);
+            
+            // Total logged hours by member
+            const memberLogs = (state.workLogs || []).filter(w => w.userName === m.name || w.userId === m.id);
+            const loggedH = memberLogs.reduce((sum, l) => sum + (Number(l.hours) || 0), 0);
+            const totalMemberCost = loggedH * hourly;
+
+            const dept = (state.departments || []).find(d => d.id === m.departmentId || d.name === m.departmentId);
+            const deptName = dept ? dept.name : (m.departmentName || '未分派');
+
+            return `
+              <tr>
+                <td>
+                  <div style="font-weight:700; color:#0f172a;">${m.name}</div>
+                  <div style="font-size:11px; color:#64748b;">${m.email}</div>
+                </td>
+                <td><span class="badge badge-info" style="font-size:11px;">${deptName}</span></td>
+                <td><span class="badge badge-purple">${m.role}</span></td>
+                <td style="font-family:monospace; font-weight:800; color:#047857; font-size:14px;">NT$ ${monthly.toLocaleString()}</td>
+                <td style="font-family:monospace; font-weight:700; color:#2563eb;">NT$ ${hourly}/hr</td>
+                <td style="font-family:monospace; font-weight:700;">${loggedH} h</td>
+                <td style="font-family:monospace; font-weight:800; color:#b45309;">NT$ ${totalMemberCost.toLocaleString()}</td>
+                <td style="font-size:11px; color:#64748b;">${m.salaryNotes || '-'}</td>
+                <td style="text-align:right;">
+                  ${hasPermission('salary_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openSalaryModal('${m.id}')">調整薪資</button>` : '<span style="font-size:11px; color:#94a3b8;">🔒 唯讀</span>'}
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+
+      // Render Tab 2: Project Labor Cost Analysis Table
+      const projTbody = document.getElementById('salaries-proj-table-body');
+      if (projTbody) {
+        if (!canView) {
+          projTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px; color:#64748b;">🔒 成本分析屬機密資料，您目前無檢視權限</td></tr>`;
+        } else {
+          projTbody.innerHTML = (state.projects || []).map(p => {
+            const data = projCostMap[p.id] || { estHours: 0, actHours: 0, estCost: 0, actCost: 0 };
+            const diffCost = data.estCost - data.actCost;
+            const isOverBudget = diffCost < 0;
+            const execRate = data.estCost > 0 ? Math.round((data.actCost / data.estCost) * 100) : 0;
+
+            return `
+              <tr>
+                <td>
+                  <div style="font-weight:700; color:#0f172a;">${p.name}</div>
+                  <div style="font-size:11px; color:#2563eb; font-family:monospace;">${p.code} • ${getClientName(p.clientId)}</div>
+                </td>
+                <td style="font-family:monospace; font-weight:700;">${data.estHours} h</td>
+                <td style="font-family:monospace; font-weight:700; color:#2563eb;">${data.actHours} h</td>
+                <td style="font-family:monospace; font-weight:700;">NT$ ${data.estCost.toLocaleString()}</td>
+                <td style="font-family:monospace; font-weight:800; color:#0f172a;">NT$ ${data.actCost.toLocaleString()}</td>
+                <td style="font-family:monospace; font-weight:800; color:${isOverBudget ? '#dc2626' : '#047857'};">
+                  ${isOverBudget ? '⚠️ 超支 NT$ ' + Math.abs(diffCost).toLocaleString() : '🟢 結餘 NT$ ' + diffCost.toLocaleString()}
+                </td>
+                <td>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="badge ${isOverBudget ? 'badge-danger' : 'badge-success'}">${execRate}%</span>
+                    <span style="font-size:11px; color:#64748b;">${p.status}</span>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+
+      // Render Tab 3: Department Labor Cost Analysis Table
+      const deptTbody = document.getElementById('salaries-dept-table-body');
+      if (deptTbody) {
+        if (!canView) {
+          deptTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px; color:#64748b;">🔒 部門工時成本屬機密資料，您目前無檢視權限</td></tr>`;
+        } else {
+          deptTbody.innerHTML = (state.departments || []).map(dept => {
+            const deptMembers = members.filter(m => m.departmentId === dept.id || m.departmentName === dept.name);
+            const deptMonthlyTotal = deptMembers.reduce((sum, m) => sum + (Number(m.monthlySalary) || 60000), 0);
+            
+            // Total hours & labor cost by department members
+            let deptHours = 0;
+            let deptLaborCost = 0;
+
+            deptMembers.forEach(m => {
+              const hourly = Number(m.hourlyRate) || Math.round((Number(m.monthlySalary) || 60000) / 160);
+              const logs = (state.workLogs || []).filter(w => w.userName === m.name || w.userId === m.id);
+              const loggedH = logs.reduce((sum, l) => sum + (Number(l.hours) || 0), 0);
+              deptHours += loggedH;
+              deptLaborCost += (loggedH * hourly);
+            });
+
+            const costShare = totalLaborCost > 0 ? Math.round((deptLaborCost / totalLaborCost) * 100) : 0;
+            const managerName = dept.managerName || (members.find(m => m.id === dept.managerId)?.name || '未指定');
+
+            return `
+              <tr>
+                <td>
+                  <div style="font-weight:700; color:#0f172a;">${dept.name}</div>
+                  <div style="font-size:11px; color:#2563eb; font-family:monospace;">${dept.code}</div>
+                </td>
+                <td><span class="badge badge-warning">👑 ${managerName}</span></td>
+                <td><span class="badge badge-info">👥 ${deptMembers.length} 人</span></td>
+                <td style="font-family:monospace; font-weight:700; color:#047857;">NT$ ${deptMonthlyTotal.toLocaleString()}</td>
+                <td style="font-family:monospace; font-weight:700;">${deptHours} h</td>
+                <td style="font-family:monospace; font-weight:800; color:#b45309;">NT$ ${deptLaborCost.toLocaleString()}</td>
+                <td>
+                  <div class="progress-bar-bg" style="width:100px; display:inline-block; vertical-align:middle; margin-right:6px;">
+                    <div class="progress-bar-fill" style="width:${costShare}%;"></div>
+                  </div>
+                  <span style="font-size:11px; font-weight:700; font-family:monospace;">${costShare}%</span>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+    }
+
+    function openSalaryModal(userId) {
+      const m = (state.members || []).find(x => x.id === userId);
+      if (!m) return;
+
+      document.getElementById('form-salary-user-id').value = m.id;
+      document.getElementById('form-salary-user-name').value = `${m.name} (${m.role})`;
+      
+      const monthly = Number(m.monthlySalary) || 60000;
+      const hourly = Number(m.hourlyRate) || Math.round(monthly / 160);
+
+      document.getElementById('form-salary-monthly').value = monthly;
+      document.getElementById('form-salary-hourly').value = hourly;
+      document.getElementById('form-salary-effective').value = m.effectiveDate || TODAY;
+
+      const dept = (state.departments || []).find(d => d.id === m.departmentId || d.name === m.departmentId);
+      document.getElementById('form-salary-dept').value = dept ? dept.name : (m.departmentName || '未分派');
+      document.getElementById('form-salary-notes').value = m.salaryNotes || '';
+
+      openModal('modal-salary');
+    }
+
+    function saveSalary() {
+      const userId = document.getElementById('form-salary-user-id').value;
+      const monthlySalary = Number(document.getElementById('form-salary-monthly').value) || 60000;
+      const hourlyRate = Number(document.getElementById('form-salary-hourly').value) || Math.round(monthlySalary / 160);
+      const effectiveDate = document.getElementById('form-salary-effective').value || TODAY;
+      const salaryNotes = document.getElementById('form-salary-notes').value.trim();
+
+      const m = (state.members || []).find(x => x.id === userId);
+      if (m) {
+        m.monthlySalary = monthlySalary;
+        m.hourlyRate = hourlyRate;
+        m.effectiveDate = effectiveDate;
+        m.salaryNotes = salaryNotes;
+        showToast(`成員「${m.name}」薪資已更新為 月薪 NT$ ${monthlySalary.toLocaleString()} (折算時薪 NT$ ${hourlyRate}/h)！`);
+      }
+
+      syncToFirebase();
+      closeModal('modal-salary');
+      renderAll();
     }
 
     // ================= 3. ROLES MANAGEMENT =================

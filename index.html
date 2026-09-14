@@ -47,6 +47,16 @@
           <span class="sidebar-hide-on-collapse">員工管理</span>
           <span class="count-pill sidebar-hide-on-collapse" id="badge-members-count">6</span>
         </button>
+        <button class="nav-btn" id="nav-btn-departments" onclick="navTo('departments', this)" title="部門管理">
+          <span>🏛️</span>
+          <span class="sidebar-hide-on-collapse">部門管理</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="badge-departments-count">3</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-salaries" onclick="navTo('salaries', this)" title="薪資與成本管理">
+          <span>💰</span>
+          <span class="sidebar-hide-on-collapse">薪資與成本管理</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="badge-salaries-count">6</span>
+        </button>
         <button class="nav-btn" id="nav-btn-roles" onclick="navTo('roles', this)" title="角色管理">
           <span>🛡️</span>
           <span class="sidebar-hide-on-collapse">角色管理</span>
@@ -246,7 +256,9 @@
             <thead>
               <tr>
                 <th>員工姓名</th>
+                <th>所屬部門與主管身分</th>
                 <th>職務角色 / 權限</th>
+                <th>月薪 (NT$)</th>
                 <th>聯絡 EMAIL</th>
                 <th>聯絡電話</th>
                 <th>運作專案</th>
@@ -366,6 +378,128 @@
               </tr>
             </thead>
             <tbody id="holidays-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 4.2 DEPARTMENTS PAGE (內部管理 - 部門管理) ================= -->
+      <div id="page-departments" style="display: none;">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">部門管理 (Department Management)</h1>
+            <p class="page-subtitle">建立公司組織部門、指定部門主管，配置部門主管與部門員工之獨立權限矩陣</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-department" onclick="openDepartmentModal()">+ 新增部門</button>
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>部門代碼與名稱</th>
+                <th>部門主管</th>
+                <th>部門成員數</th>
+                <th>部門職掌與簡介</th>
+                <th>主管權限 / 員工權限獨立矩陣</th>
+                <th style="text-align: right;">操作項目</th>
+              </tr>
+            </thead>
+            <tbody id="departments-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 4.3 SALARIES PAGE (內部管理 - 薪資與成本管理) ================= -->
+      <div id="page-salaries" style="display: none;">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">薪資與工時成本管理 (Salary & Cost Analysis)</h1>
+            <p class="page-subtitle">維護成員薪資結構、月薪與時薪換算，提供專案人力工時成本損益分析與部門成本分攤看板</p>
+          </div>
+        </div>
+
+        <!-- Cost KPI Summary Grid -->
+        <div class="grid-4" style="gap: 16px; margin-bottom: 20px;">
+          <div class="metric-card">
+            <div class="metric-title">團隊總月薪預算</div>
+            <div class="metric-num" style="color: var(--primary);" id="kpi-total-monthly-salary">NT$ 0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">團隊平均工時成本</div>
+            <div class="metric-num" style="color: var(--purple);" id="kpi-avg-hourly-rate">NT$ 0/h</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">全站累計工時人力成本</div>
+            <div class="metric-num" style="color: var(--warning);" id="kpi-total-labor-cost">NT$ 0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">最高成本主專案</div>
+            <div class="metric-num" style="color: var(--danger); font-size:16px; line-height:1.3;" id="kpi-top-cost-project">-</div>
+          </div>
+        </div>
+
+        <!-- Sub Tabs: Employee Salaries / Project Costs / Department Costs -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <div class="tab-pill-group" style="margin:0;">
+            <button class="tab-pill active" id="tab-salary-emp" onclick="switchSalarySubTab('emp')">👥 員工薪資與個人成本明細</button>
+            <button class="tab-pill" id="tab-salary-proj" onclick="switchSalarySubTab('proj')">📊 專案人力成本損益分析</button>
+            <button class="tab-pill" id="tab-salary-dept" onclick="switchSalarySubTab('dept')">🏢 部門工時成本分攤</button>
+          </div>
+        </div>
+
+        <!-- Section 1: Employee Salaries Table -->
+        <div id="salary-subtab-emp" class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>員工姓名</th>
+                <th>所屬部門</th>
+                <th>職務角色</th>
+                <th>月薪 (NT$)</th>
+                <th>折算時薪 (NT$/hr)</th>
+                <th>累計填報工時</th>
+                <th>專案工時總成本</th>
+                <th>備註</th>
+                <th style="text-align: right;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="salaries-emp-table-body"></tbody>
+          </table>
+        </div>
+
+        <!-- Section 2: Project Labor Cost Analysis Table -->
+        <div id="salary-subtab-proj" class="table-card" style="display:none;">
+          <table>
+            <thead>
+              <tr>
+                <th>專案編號與名稱</th>
+                <th>預估工時 (h)</th>
+                <th>實際工時 (h)</th>
+                <th>預估人力成本 (NT$)</th>
+                <th>實際人力成本 (NT$)</th>
+                <th>成本偏差 / 盈虧</th>
+                <th>執行進度 / 狀態</th>
+              </tr>
+            </thead>
+            <tbody id="salaries-proj-table-body"></tbody>
+          </table>
+        </div>
+
+        <!-- Section 3: Department Labor Cost Analysis Table -->
+        <div id="salary-subtab-dept" class="table-card" style="display:none;">
+          <table>
+            <thead>
+              <tr>
+                <th>部門名稱</th>
+                <th>部門主管</th>
+                <th>部門人數</th>
+                <th>部門月薪合計</th>
+                <th>累計填報工時</th>
+                <th>部門工時總成本</th>
+                <th>全站成本占比</th>
+              </tr>
+            </thead>
+            <tbody id="salaries-dept-table-body"></tbody>
           </table>
         </div>
       </div>
@@ -609,6 +743,16 @@
             </select>
           </div>
           <div class="form-group">
+            <label class="form-label">所屬組織部門 (Department)</label>
+            <select id="form-member-department" class="form-select"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">月薪設定 (NT$ / 月)</label>
+            <input type="number" id="form-member-salary" class="form-input" placeholder="例如: 65000">
+          </div>
+          <div class="form-group">
             <label class="form-label">聯絡電話</label>
             <input type="text" id="form-member-phone" class="form-input" placeholder="+886 912-345-678">
           </div>
@@ -621,6 +765,115 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('modal-member')">取消</button>
         <button class="btn btn-primary" onclick="saveMember()">儲存成員資料</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Department Modal (新增/編輯部門與獨立權限控制) -->
+  <div class="modal-overlay" id="modal-department" onclick="handleOverlayClick(event, 'modal-department')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-dept-title">🏛️ 新增 / 編輯部門組織與獨立權限矩陣</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-department')">✕</button>
+      </div>
+      <div class="modal-body" style="max-height: calc(85vh - 120px); overflow-y: auto;">
+        <input type="hidden" id="form-dept-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required">部門代碼 (Department Code) *</label>
+            <input type="text" id="form-dept-code" class="form-input" placeholder="例如: RD, PMO, DESIGN">
+          </div>
+          <div class="form-group">
+            <label class="form-label required">部門名稱 (Department Name) *</label>
+            <input type="text" id="form-dept-name" class="form-input" placeholder="例如: 研發部 (R&D Department)">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">👑 部門主管 (Department Manager)</label>
+            <select id="form-dept-manager" class="form-select"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">部門職掌與核心簡介</label>
+            <input type="text" id="form-dept-desc" class="form-input" placeholder="簡述部門核心職掌與責任目標...">
+          </div>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-top: 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+            <div style="font-weight: 800; font-size: 13px; color: #1e293b;">🛡️ 部門獨立權限配置 (Manager vs Employee Permissions)</div>
+            <div class="tab-pill-group" style="margin:0;">
+              <button type="button" class="tab-pill active" id="tab-dept-perm-mgr" onclick="switchDeptPermTab('mgr')">👑 部門主管專屬權限</button>
+              <button type="button" class="tab-pill" id="tab-dept-perm-emp" onclick="switchDeptPermTab('emp')">👤 部門員工一般權限</button>
+            </div>
+          </div>
+          <p style="font-size: 11px; color: #64748b; margin-bottom: 10px;">
+            此處可針對【部門主管】與【部門成員員工】獨立設定特權與作業權限。該成員歸屬於此部門時，將自動繼承所選定的專屬權限矩陣。
+          </p>
+
+          <!-- Dept Manager Matrix -->
+          <div id="dept-perm-matrix-mgr" style="display:flex; flex-direction:column; gap:10px; max-height:280px; overflow-y:auto;"></div>
+
+          <!-- Dept Employee Matrix -->
+          <div id="dept-perm-matrix-emp" style="display:none; flex-direction:column; gap:10px; max-height:280px; overflow-y:auto;"></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        <button type="button" class="btn btn-danger-outline btn-sm" id="btn-delete-dept" onclick="deleteDepartmentFromModal()" style="display:none;">🗑️ 刪除此部門</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary" onclick="closeModal('modal-department')">取消</button>
+          <button class="btn btn-primary" onclick="saveDepartment()">💾 儲存部門設定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Salary Modal (員工薪資結構與工時成本設定) -->
+  <div class="modal-overlay" id="modal-salary" onclick="handleOverlayClick(event, 'modal-salary')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">💰 員工薪資與工時成本設定</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-salary')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-salary-user-id">
+        <div class="form-group">
+          <label class="form-label">員工姓名與角色</label>
+          <input type="text" id="form-salary-user-name" class="form-input" readonly style="background:#f1f5f9; font-weight:700;">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required">月薪金額 (NT$ / 月) *</label>
+            <input type="number" id="form-salary-monthly" class="form-input" placeholder="例如: 65000" oninput="autoCalculateHourlyRate(this.value)">
+          </div>
+          <div class="form-group">
+            <label class="form-label required">工時折算時薪 (NT$ / hr) *</label>
+            <input type="number" id="form-salary-hourly" class="form-input" placeholder="預設依 月薪 / 160 計算">
+            <small style="color:#64748b; font-size:10px;">預設標準月工時以 160h 折算</small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">薪資生效日期</label>
+            <input type="date" id="form-salary-effective" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">所屬部門</label>
+            <input type="text" id="form-salary-dept" class="form-input" readonly style="background:#f1f5f9;">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">薪資與成本備註</label>
+          <textarea id="form-salary-notes" class="form-textarea" rows="2" placeholder="備註津貼、年終發放或成本分攤原則..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-salary')">取消</button>
+        <button class="btn btn-primary" onclick="saveSalary()">💾 儲存薪資設定</button>
       </div>
     </div>
   </div>
