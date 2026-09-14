@@ -5058,38 +5058,100 @@
       }
     }
 
+    function onTaskEstimatingDeptsChange() {
+      const dept1Id = document.getElementById('form-task-dept-1')?.value || '';
+      const dept2Id = document.getElementById('form-task-dept-2')?.value || '';
+      
+      const dept1 = (state.departments || []).find(d => d.id === dept1Id);
+      const dept2 = (state.departments || []).find(d => d.id === dept2Id);
+      const estimatorText = [dept1?.name, dept2?.name].filter(Boolean).join(', ');
+      
+      const hiddenEst = document.getElementById('form-task-estimator');
+      if (hiddenEst) hiddenEst.value = estimatorText;
+
+      const currentAssignees = getSelectedTaskAssignees();
+      renderTaskAssigneesCheckboxes(currentAssignees);
+
+      const status = document.getElementById('form-task-status')?.value || '規劃中';
+      updateTaskScheduleSectionState(status, estimatorText);
+      updateTaskModalHeaderAndFooterActions(status, estimatorText, currentAssignees);
+    }
+
+    function onTaskEstimatorChange(newEstimator) {
+      onTaskEstimatingDeptsChange();
+    }
+
     function renderTaskAssigneesCheckboxes(selectedNames = []) {
       const wrap = document.getElementById('task-assignees-selection-wrap');
       if (!wrap) return;
       const set = new Set((selectedNames || []).map(s => s.trim()));
 
-      const currentEstimatorName = (document.getElementById('form-task-estimator')?.value || '').trim();
-      const estimatorMember = state.members.find(m => m.name === currentEstimatorName);
+      const dept1Id = document.getElementById('form-task-dept-1')?.value || '';
+      const dept2Id = document.getElementById('form-task-dept-2')?.value || '';
+      const selectedDeptIds = [dept1Id, dept2Id].filter(Boolean);
 
-      let membersToDisplay = state.members;
-      let deptNoticeHtml = '';
-
-      if (estimatorMember && estimatorMember.departmentId) {
-        const dept = (state.departments || []).find(d => d.id === estimatorMember.departmentId);
-        const deptMembers = state.members.filter(m => m.departmentId === estimatorMember.departmentId);
-        if (deptMembers.length > 0) {
-          membersToDisplay = deptMembers;
-          const deptName = dept ? dept.name.split(' ')[0] : (estimatorMember.departmentName || '');
-          deptNoticeHtml = `<div style="width:100%; font-size:11px; color:#1e40af; font-weight:700; margin-bottom:6px; background:#eff6ff; padding:4px 8px; border-radius:4px; border:1px solid #bfdbfe;">🏢 已根據評估人「${currentEstimatorName}」自動限定【${deptName}】部門成員：</div>`;
-        }
-      } else if (!currentEstimatorName) {
-        deptNoticeHtml = `<div style="width:100%; font-size:11px; color:#475569; font-weight:600; margin-bottom:6px; background:#f1f5f9; padding:4px 8px; border-radius:4px;">💡 提示：選擇任務評估人 (主管) 後，將自動限定顯示該主管部門下之執行人員</div>`;
+      if (selectedDeptIds.length === 0) {
+        wrap.innerHTML = `<div style="width:100%; font-size:11px; color:#475569; font-weight:600; padding:6px; background:#f1f5f9; border-radius:4px;">💡 提示：請先選取【任務評估】部門，將自動帶出該部門底下之同仁與主管</div>`;
+        updateTaskAssigneesCountBadge();
+        updateTaskBasicFieldsPermissions();
+        return;
       }
 
-      wrap.innerHTML = deptNoticeHtml + membersToDisplay.map(m => {
-        const isChecked = set.has(m.name.trim());
-        return `
-          <label class="assignee-pill ${isChecked ? 'active' : ''}">
-            <input type="checkbox" name="task-assignee-cb" value="${m.name}" ${isChecked ? 'checked' : ''} onchange="onTaskAssigneeCheckboxChange()">
-            <span>${m.name} <small style="color:${isChecked ? '#3b82f6' : '#64748b'};">(${m.role})</small></span>
-          </label>
+      const currentUserMember = (currentAuthUser && currentAuthUser.memberInfo) ? currentAuthUser.memberInfo : null;
+      const isManager = isCurrentRoleManager();
+      const isAdminOrPm = hasPermission('task_edit') || isManager;
+
+      const taskId = document.getElementById('form-task-id')?.value;
+      const currentTask = taskId ? state.tasks.find(t => t.id === taskId) : null;
+      const evaluations = currentTask?.evaluations || {};
+      const taskStatus = document.getElementById('form-task-status')?.value || '規劃中';
+
+      let html = '';
+
+      selectedDeptIds.forEach((deptId, idx) => {
+        const dept = (state.departments || []).find(d => d.id === deptId);
+        if (!dept) return;
+
+        const deptMembers = state.members.filter(m => m.departmentId === dept.id || m.departmentName === dept.name);
+        const isCurrentUserDeptManager = currentUserMember ? (dept.managerId === currentUserMember.id || dept.managerName === currentUserMember.name) : false;
+        const isDeptSubmitted = evaluations[deptId]?.submitted === true;
+
+        let canEditThisDept = true;
+        if (taskStatus === '待評估') {
+          if (isDeptSubmitted) {
+            canEditThisDept = false; // Submitted evaluation is locked!
+          } else if (!isAdminOrPm && currentUserMember) {
+            canEditThisDept = isCurrentUserDeptManager; // Scoped to manager's own department
+          }
+        }
+
+        const deptBadge = isDeptSubmitted 
+          ? `<span class="badge badge-success" style="font-size:10px;">🔒 已送出評估 (不可再編輯)</span>`
+          : `<span class="badge badge-warning" style="font-size:10px;">⏳ 待評估中</span>`;
+
+        html += `
+          <div style="width:100%; margin-bottom:8px; background:white; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-weight:700; font-size:12px; color:#1e40af;">🏢 部門 ${idx + 1}: ${dept.name} ${deptBadge}</span>
+              <span style="font-size:11px; color:#64748b;">👑 主管: ${dept.managerName || '未指定'}</span>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              ${deptMembers.length > 0 ? deptMembers.map(m => {
+                const isChecked = set.has(m.name.trim());
+                const isDisabled = !canEditThisDept;
+                return `
+                  <label class="assignee-pill ${isChecked ? 'active' : ''}" style="opacity:${isDisabled ? '0.65' : '1'}; cursor:${isDisabled ? 'not-allowed' : 'pointer'};">
+                    <input type="checkbox" name="task-assignee-cb" value="${m.name}" data-dept-id="${dept.id}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} onchange="onTaskAssigneeCheckboxChange()">
+                    <span>${m.name} <small style="color:${isChecked ? '#3b82f6' : '#64748b'};">(${m.role})</small></span>
+                  </label>
+                `;
+              }).join('') : '<span style="font-size:11px; color:#94a3b8;">此部門尚無設定成員</span>'}
+            </div>
+          </div>
         `;
-      }).join('');
+      });
+
+      wrap.innerHTML = html;
       updateTaskAssigneesCountBadge();
       updateTaskBasicFieldsPermissions();
     }
@@ -5277,19 +5339,55 @@
       let html = '';
 
       if (status === '規劃中') {
-        if (isManager) {
+        if (isManager || hasPermission('task_edit')) {
           html = `<button type="button" class="btn btn-primary btn-sm" onclick="publishTaskFromModal()" style="font-weight:600;">🚀 發布</button>`;
         }
       } else if (status === '待評估') {
-        if (isEstimator || isManager) {
-          html = `<button type="button" class="btn btn-primary btn-sm" onclick="submitTaskEvaluationFromModal()" style="font-weight:600;">📋 送出評估</button>`;
+        const taskId = document.getElementById('form-task-id')?.value;
+        const currentTask = taskId ? state.tasks.find(t => t.id === taskId) : null;
+        const evaluations = currentTask?.evaluations || {};
+
+        const dept1Id = document.getElementById('form-task-dept-1')?.value || '';
+        const dept2Id = document.getElementById('form-task-dept-2')?.value || '';
+        const selectedDeptIds = [dept1Id, dept2Id].filter(Boolean);
+
+        const currentUserMember = (currentAuthUser && currentAuthUser.memberInfo) ? currentAuthUser.memberInfo : null;
+        const isAdminOrPm = hasPermission('task_edit') || isManager;
+
+        let buttonsHtml = '';
+
+        if (selectedDeptIds.length > 0) {
+          selectedDeptIds.forEach(deptId => {
+            const dept = (state.departments || []).find(d => d.id === deptId);
+            if (!dept) return;
+            const isDeptSubmitted = evaluations[deptId]?.submitted === true;
+
+            if (isDeptSubmitted) {
+              buttonsHtml += `<span class="badge badge-success" style="padding:6px 10px; font-size:12px; margin-left:4px;">🔒 ${dept.name} 已評估</span>`;
+            } else {
+              const isCurrentUserDeptManager = currentUserMember ? (dept.managerId === currentUserMember.id || dept.managerName === currentUserMember.name) : false;
+              const canSubmitThisDept = isAdminOrPm || isCurrentUserDeptManager;
+
+              if (canSubmitThisDept) {
+                buttonsHtml += `<button type="button" class="btn btn-primary btn-sm" onclick="submitTaskEvaluationFromModal('${deptId}')" style="font-weight:600; margin-left:4px;">📋 送出【${dept.name}】評估</button>`;
+              }
+            }
+          });
         }
+        
+        if (!buttonsHtml) {
+          if (isEstimator || isManager || isAdminOrPm) {
+            buttonsHtml = `<button type="button" class="btn btn-primary btn-sm" onclick="submitTaskEvaluationFromModal()" style="font-weight:600;">📋 送出評估</button>`;
+          }
+        }
+
+        html = buttonsHtml;
       } else if (status === '待執行') {
-        if (isManager) {
+        if (isManager || hasPermission('task_edit')) {
           html = `<button type="button" class="btn btn-primary btn-sm" onclick="startTaskExecutionFromModal()" style="font-weight:600;">▶️ 開始執行</button>`;
         }
       } else if (status === '進行中') {
-        if (isAssignee || isManager) {
+        if (isAssignee || isManager || hasPermission('task_edit')) {
           html = `<button type="button" class="btn btn-success btn-sm" onclick="completeTaskExecutionFromModal()" style="font-weight:600;">✨ 執行完成</button>`;
         }
       } else if (status === '待測試') {
@@ -5306,12 +5404,54 @@
       saveTask();
     }
 
-    function submitTaskEvaluationFromModal() {
+    function submitTaskEvaluationFromModal(targetDeptId = null) {
+      const taskId = document.getElementById('form-task-id')?.value;
+      const dept1Id = document.getElementById('form-task-dept-1')?.value || '';
+      const dept2Id = document.getElementById('form-task-dept-2')?.value || '';
+      const selectedDeptIds = [dept1Id, dept2Id].filter(Boolean);
+
+      if (!targetDeptId && selectedDeptIds.length > 0) {
+        targetDeptId = selectedDeptIds[0];
+      }
+
+      const dept = (state.departments || []).find(d => d.id === targetDeptId);
+      const deptName = dept ? dept.name : '該部門';
+
       const estHours = document.getElementById('form-task-est-hours')?.value;
       if (!estHours || Number(estHours) <= 0) {
-        if (!confirm('⚠️ 尚未填寫預估工時，確定要送出評估並切換為待執行嗎？')) return;
+        if (!confirm(`⚠️ 尚未填寫「${deptName}」的預估工時，確定要送出評估嗎？`)) return;
       }
-      setTaskModalStatus('待執行');
+
+      let currentTask = taskId ? state.tasks.find(t => t.id === taskId) : null;
+      if (!currentTask) {
+        currentTask = { id: taskId || ('task-' + Date.now()), evaluations: {} };
+      }
+      if (!currentTask.evaluations) {
+        currentTask.evaluations = {};
+      }
+
+      const currentUserMember = (currentAuthUser && currentAuthUser.memberInfo) ? currentAuthUser.memberInfo : null;
+      const currentUserName = currentUserMember ? currentUserMember.name : (getCurrentUserName() || '主管');
+
+      if (targetDeptId) {
+        currentTask.evaluations[targetDeptId] = {
+          submitted: true,
+          submittedBy: currentUserName,
+          submittedAt: new Date().toISOString()
+        };
+      }
+
+      // Check if ALL designated departments have submitted
+      const allSubmitted = selectedDeptIds.length > 0 && selectedDeptIds.every(id => currentTask.evaluations[id]?.submitted === true);
+
+      if (allSubmitted || selectedDeptIds.length === 0) {
+        setTaskModalStatus('待執行');
+        showToast(`🎉 「${deptName}」已送出評估！所有指定評估部門皆已完成評估，任務狀態自動轉換為「待執行」。`);
+      } else {
+        setTaskModalStatus('待評估');
+        showToast(`📋 「${deptName}」評估已成功送出！等待其他部門主管完成評估...`);
+      }
+
       saveTask();
     }
 
@@ -5491,6 +5631,16 @@
           projSelect.innerHTML = state.projects.map(p => `<option value="${p.id}" ${p.id === state.currentProjectId ? 'selected' : ''}>${p.name}</option>`).join('');
         }
 
+        // Populate Estimating Departments dropdowns (#form-task-dept-1 and #form-task-dept-2)
+        const dept1Select = document.getElementById('form-task-dept-1');
+        const dept2Select = document.getElementById('form-task-dept-2');
+        if (dept1Select && dept2Select) {
+          const depts = state.departments || [];
+          const deptOptsHtml = depts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+          dept1Select.innerHTML = `<option value="">-- 請選擇主評估部門 --</option>` + deptOptsHtml;
+          dept2Select.innerHTML = `<option value="">-- 請選擇副評估部門 (可選) --</option>` + deptOptsHtml;
+        }
+
         // Populate Estimator select (Restricted to Department Managers)
         const estimatorSelect = document.getElementById('form-task-estimator');
         if (estimatorSelect) {
@@ -5540,6 +5690,18 @@
             const typeEl = document.getElementById('form-task-type');
             if (typeEl) typeEl.value = t.type || '功能';
 
+            if (dept1Select && dept2Select) {
+              if (t.estimatingDeptIds && Array.isArray(t.estimatingDeptIds) && t.estimatingDeptIds.length > 0) {
+                dept1Select.value = t.estimatingDeptIds[0] || '';
+                dept2Select.value = t.estimatingDeptIds[1] || '';
+              } else {
+                const estMember = state.members.find(m => m.name === getTaskEstimator(t));
+                const deptId = estMember?.departmentId || (state.departments?.[0]?.id || '');
+                dept1Select.value = deptId;
+                dept2Select.value = '';
+              }
+            }
+
             taskEstimator = getTaskEstimator(t);
             if (estimatorSelect) estimatorSelect.value = taskEstimator;
 
@@ -5586,6 +5748,12 @@
           const typeEl = document.getElementById('form-task-type');
           if (typeEl) typeEl.value = '功能';
 
+          if (dept1Select && dept2Select) {
+            const depts = state.departments || [];
+            dept1Select.value = depts[0]?.id || '';
+            dept2Select.value = '';
+          }
+
           // Default estimator to current user (if manager) or first manager
           const managerMembers = state.members.filter(m => isDepartmentManager(m));
           const currentUserName = (currentAuthUser && currentAuthUser.memberInfo) ? currentAuthUser.memberInfo.name : '';
@@ -5595,6 +5763,7 @@
           if (estimatorSelect) estimatorSelect.value = defaultEstimator;
           taskEstimator = defaultEstimator;
 
+          onTaskEstimatingDeptsChange();
           renderTaskAssigneesCheckboxes([]);
           const assigneeEl = document.getElementById('form-task-assignee');
           if (assigneeEl) assigneeEl.value = '';
@@ -5615,6 +5784,7 @@
           updateScheduleRangeSummary();
           updateTaskTypeSeverityState('功能');
         }
+        onTaskEstimatingDeptsChange();
         updateTaskScheduleSectionState(taskStatus, taskEstimator);
         updateTaskStatusDropdownPermissions(taskStatus, taskAssignees);
         updateTaskModalHeaderAndFooterActions(taskStatus, taskEstimator, taskAssignees);
@@ -5697,6 +5867,10 @@
         }
 
         const type = document.getElementById('form-task-type')?.value || '功能';
+        const dept1Id = document.getElementById('form-task-dept-1')?.value || '';
+        const dept2Id = document.getElementById('form-task-dept-2')?.value || '';
+        const estimatingDeptIds = [dept1Id, dept2Id].filter(Boolean);
+
         let estimator = (document.getElementById('form-task-estimator')?.value || '').trim();
         if (!estimator) {
           estimator = (currentAuthUser && currentAuthUser.memberInfo) ? currentAuthUser.memberInfo.name : (state.members[0]?.name || '系統管理員');
@@ -5780,6 +5954,8 @@
             existingTask.title = title;
             existingTask.type = type;
             existingTask.estimator = estimator;
+            existingTask.estimatingDeptIds = estimatingDeptIds;
+            if (!existingTask.evaluations) existingTask.evaluations = {};
             existingTask.assignees = assignees;
             existingTask.assignee = assignee;
             existingTask.expectedDeliveryDate = expectedDeliveryDate;
@@ -5794,7 +5970,7 @@
             }
           } else {
             const newTask = {
-              id, projectId, phaseId: phase.id, moduleId: targetMod.id, wbs, title, type, estimator, assignees, assignee, expectedDeliveryDate, startDate, dueDate, estHours, actHours: 0, status, severity
+              id, projectId, phaseId: phase.id, moduleId: targetMod.id, wbs, title, type, estimator, estimatingDeptIds, evaluations: {}, assignees, assignee, expectedDeliveryDate, startDate, dueDate, estHours, actHours: 0, status, severity
             };
             targetMod.tasks.push(newTask);
           }
@@ -5809,6 +5985,8 @@
             title,
             type,
             estimator,
+            estimatingDeptIds,
+            evaluations: {},
             assignees,
             assignee,
             expectedDeliveryDate,

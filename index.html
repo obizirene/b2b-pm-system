@@ -1172,8 +1172,12 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">🔍 任務評估人 (Estimator - 負責預估排程與工時) *</label>
-            <select id="form-task-estimator" class="form-select" onchange="onTaskEstimatorChange(this.value)"></select>
+            <label class="form-label" id="label-form-task-estimator">🔍 任務評估 (Task Estimating Departments) *</label>
+            <div style="display:flex; gap:8px;">
+              <select id="form-task-dept-1" class="form-select" onchange="onTaskEstimatingDeptsChange()"></select>
+              <select id="form-task-dept-2" class="form-select" onchange="onTaskEstimatingDeptsChange()"></select>
+            </div>
+            <input type="hidden" id="form-task-estimator" value="">
           </div>
         </div>
         
