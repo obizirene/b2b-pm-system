@@ -1351,6 +1351,20 @@
       return isManagerOfDept || isPmOrAdmin;
     }
 
+    function getDepartmentManagerName(dept) {
+      if (!dept) return '未指定';
+      if (dept.managerId) {
+        const m = (state.members || []).find(x => x.id === dept.managerId);
+        if (m && m.name) return m.name;
+      }
+      if (dept.managerName) {
+        const m = (state.members || []).find(x => x.name === dept.managerName || (x.name && x.name.includes(dept.managerName)) || (dept.managerName && dept.managerName.includes(x.name)));
+        if (m && m.name) return m.name;
+        return dept.managerName;
+      }
+      return '未指定';
+    }
+
     function getTaskBadgeClass(status) {
       if (status === '已完成') return 'badge-success';
       if (status === '待測試') return 'badge-purple';
@@ -1952,6 +1966,7 @@
       if (id) {
         const m = state.members.find(x => x.id === id);
         if (m) {
+          const oldName = m.name;
           m.name = name;
           m.role = role;
           m.departmentId = departmentId;
@@ -1960,6 +1975,33 @@
           m.hourlyRate = hourlyRate;
           m.email = email;
           m.phone = phone;
+
+          // Synchronize department managerName & managerId if this member is a manager
+          (state.departments || []).forEach(d => {
+            if (d.managerId === id || d.managerName === oldName || (oldName && d.managerName && d.managerName.includes(oldName))) {
+              d.managerId = id;
+              d.managerName = name;
+            }
+          });
+
+          // Synchronize tasks estimator / assignee if member name changed
+          if (oldName && oldName !== name) {
+            (state.phases || []).forEach(phase => {
+              (phase.modules || []).forEach(mod => {
+                (mod.tasks || []).forEach(t => {
+                  if (t.estimator && (t.estimator === oldName || t.estimator.includes(oldName))) {
+                    t.estimator = t.estimator.replace(oldName, name);
+                  }
+                  if (t.assignee && (t.assignee === oldName || t.assignee.includes(oldName))) {
+                    t.assignee = t.assignee.replace(oldName, name);
+                  }
+                  if (Array.isArray(t.assignees)) {
+                    t.assignees = t.assignees.map(a => a === oldName ? name : a);
+                  }
+                });
+              });
+            });
+          }
         }
         showToast('員工資料已成功更新！');
       } else {
@@ -1990,7 +2032,7 @@
       const tbody = document.getElementById('departments-table-body');
       if (!tbody) return;
       tbody.innerHTML = (state.departments || []).map(dept => {
-        const managerName = dept.managerName || (state.members.find(m => m.id === dept.managerId)?.name || '未指定');
+        const managerName = getDepartmentManagerName(dept);
         const deptMembers = (state.members || []).filter(m => m.departmentId === dept.id || m.departmentName === dept.name);
 
         return `
@@ -2321,7 +2363,7 @@
             });
 
             const costShare = totalLaborCost > 0 ? Math.round((deptLaborCost / totalLaborCost) * 100) : 0;
-            const managerName = dept.managerName || (members.find(m => m.id === dept.managerId)?.name || '未指定');
+            const managerName = getDepartmentManagerName(dept);
 
             return `
               <tr>
