@@ -1,0 +1,14 @@
+﻿# Large media recordings
+*.mp4
+*.mov
+*.avi
+
+# Node dependencies
+node_modules/
+
+# Local logs
+*.log
+
+# OS generated files
+Thumbs.db
+.DS_Store

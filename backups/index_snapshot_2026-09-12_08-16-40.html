@@ -1,0 +1,3815 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>B2B 專案管理與工時追蹤整合系統 (B2B PM System & ProjectFlow Combined)</title>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+      --bg: #f8fafc;
+      --danger: #f43f5e;
+      --success: #16a34a;
+      --warning: #d97706;
+      --purple: #8b5cf6;
+      --info: #0284c7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Microsoft JhengHei", "Segoe UI", Roboto, sans-serif; background-color: var(--bg); color: var(--slate-900); display: flex; min-height: 100vh; font-size: 13px; }
+
+    /* Layout & Collapsible Sidebar */
+    .sidebar { width: 250px; background: var(--slate-900); color: var(--slate-400); flex-shrink: 0; display: flex; flex-direction: column; min-height: 100vh; border-right: 1px solid var(--slate-800); transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1); position: relative; z-index: 30; }
+    .sidebar.collapsed { width: 68px; }
+    .sidebar.collapsed .sidebar-hide-on-collapse { display: none !important; }
+    .sidebar.collapsed .sidebar-header { padding: 0; justify-content: center; }
+    .sidebar.collapsed .sidebar-brand { display: none; }
+    .sidebar.collapsed .sidebar-toggle-btn { margin: 0 auto; width: 36px; height: 36px; font-size: 13px; border-radius: 8px; }
+    .sidebar.collapsed .nav-btn { justify-content: center; padding: 0; width: 44px; height: 44px; margin: 4px auto; border-radius: 8px; gap: 0; }
+    .sidebar.collapsed .nav-btn span:first-child { font-size: 18px; width: auto; margin: 0; }
+    .sidebar.collapsed .count-pill { display: none; }
+    .sidebar.collapsed .project-card-btn { display: none; }
+    .sidebar.collapsed .back-btn { justify-content: center; padding: 0; width: 44px; height: 44px; margin: 0 auto; }
+    .sidebar.collapsed .sidebar-back-box { display: flex; justify-content: center; padding: 6px 0; }
+    .sidebar.collapsed .tier2-proj-badge-card { display: none; }
+    .sidebar.collapsed #sidebar-user-block { display: none !important; }
+    .sidebar-header { height: 64px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--slate-800); color: white; font-weight: 700; font-size: 15px; }
+    .sidebar-brand { display: flex; align-items: center; gap: 10px; overflow: hidden; }
+    .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+    
+    .sidebar-toggle-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--slate-700); color: var(--slate-400); border-radius: 6px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; font-size: 11px; flex-shrink: 0; }
+    .sidebar-toggle-btn:hover { background: var(--slate-800); color: white; border-color: #64748b; }
+
+    .nav-section-title { padding: 14px 14px 6px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+    .nav-menu { padding: 0 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; overflow-y: auto; overflow-x: hidden; }
+    .nav-btn { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; padding: 9px 12px; border-radius: 8px; border: none; background: transparent; color: var(--slate-400); font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; transition: all 0.15s; }
+    .nav-btn span:first-child { font-size: 15px; width: 20px; display: inline-flex; justify-content: center; align-items: center; flex-shrink: 0; }
+    .nav-btn:hover { background-color: var(--slate-800); color: white; }
+    .nav-btn.active { background-color: var(--primary); color: white; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+    .count-pill { margin-left: auto; background: rgba(255,255,255,0.15); padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+
+    /* Tier 1 Project Cards */
+    .project-card-btn { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 9px 12px; border-radius: 8px; background: rgba(30,41,59,0.6); border: 1px solid #334155; color: #cbd5e1; text-align: left; cursor: pointer; transition: all 0.15s; margin-bottom: 4px; }
+    .project-card-btn:hover { background: #1e293b; border-color: #38bdf8; color: white; transform: translateX(2px); }
+    .project-card-btn.active-proj { background: rgba(37,99,235,0.18); border-color: #3b82f6; box-shadow: 0 2px 8px rgba(37,99,235,0.2); }
+
+    /* Tier 2 Back button & Info Header */
+    .sidebar-back-box { padding: 6px 0 12px; border-bottom: 1px solid var(--slate-800); margin-bottom: 10px; }
+    .back-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border-radius: 8px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+    .back-btn:hover { background: rgba(56,189,248,0.2); color: white; }
+    
+    .tier2-proj-badge-card { padding: 10px 12px; background: rgba(15,23,42,0.6); border: 1px solid #334155; border-radius: 8px; margin-bottom: 14px; }
+    .project-switcher-select { width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 6px; padding: 6px 8px; font-size: 12px; font-weight: 600; cursor: pointer; outline: none; }
+    .project-switcher-select:focus { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.2); }
+
+    .main-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .top-header { height: 64px; background: white; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; position: sticky; top: 0; z-index: 20; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+    .content-area { padding: 24px 28px; flex: 1; overflow-y: auto; }
+
+    /* Active Project Scoping Banner */
+    .active-project-banner { background: linear-gradient(90deg, #eff6ff, #ffffff); border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; padding: 10px 16px; border-radius: 8px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(37,99,235,0.04); }
+    .active-project-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .active-project-badge { background: #2563eb; color: white; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px; }
+    .active-project-title { font-size: 14px; font-weight: 800; color: #1e3a8a; }
+    .active-project-client { font-size: 12px; color: #64748b; }
+
+    /* UI Components */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: white; color: var(--slate-700); border: 1px solid #cbd5e1; }
+    .btn-secondary:hover { background: #f1f5f9; border-color: #94a3b8; }
+    .btn-danger-outline { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    .btn-danger-outline:hover { background: #fff1f2; }
+    .btn-purple { background: var(--purple); color: white; }
+    .btn-purple:hover { background: #7c3aed; }
+    .btn-sm { padding: 6px 10px; font-size: 12px; border-radius: 6px; }
+    .btn-xs { padding: 3px 6px; font-size: 11px; border-radius: 4px; }
+
+    .badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+    .badge-purple { background: #f3e8ff; color: #7e22ce; }
+    .badge-info { background: #e0f2fe; color: #0369a1; }
+    .badge-success { background: #dcfce7; color: #15803d; }
+    .badge-warning { background: #fef3c7; color: #b45309; }
+    .badge-danger { background: #fee2e2; color: #b91c1c; }
+    .badge-slate { background: #f1f5f9; color: #475569; }
+
+    .card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+    .page-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-size: 20px; font-weight: 800; color: var(--slate-900); }
+    .page-subtitle { font-size: 12px; color: var(--slate-500); margin-top: 4px; }
+
+    .grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 24px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    @media (max-width: 1200px) {
+      .grid-6 { grid-template-columns: repeat(3, 1fr); }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    .metric-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 16px; cursor: pointer; transition: all 0.15s; }
+    .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .metric-title { font-size: 12px; font-weight: 600; color: var(--slate-500); }
+    .metric-num { font-size: 24px; font-weight: 800; color: var(--slate-900); margin-top: 6px; }
+
+    .table-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { background: #f8fafc; padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--slate-500); border-bottom: 1px solid #e2e8f0; }
+    td { padding: 14px 16px; font-size: 13px; border-bottom: 1px solid #f1f5f9; color: var(--slate-700); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background-color: #f8fafc; }
+
+    /* Gantt Chart */
+    .gantt-wrapper { display: flex; background: white; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+    .gantt-left-panel { width: 380px; flex-shrink: 0; border-right: 1px solid #e2e8f0; background: white; }
+    .gantt-left-header { height: 44px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: 12px; color: var(--slate-500); }
+    .gantt-left-row { height: 40px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; font-size: 12px; user-select: none; }
+    .gantt-left-row.level-1 { background: #eff6ff; font-weight: 800; color: #1e40af; border-left: 4px solid #1e3a8a; }
+    .gantt-left-row.level-2 { background: #f8fafc; font-weight: 700; padding-left: 28px; color: #0369a1; border-left: 4px solid #38bdf8; }
+    .gantt-left-row.level-3 { padding-left: 44px; color: #334155; }
+    .gantt-left-row:hover { background-color: #f1f5f9; }
+    .gantt-right-timeline { flex: 1; overflow-x: auto; background: white; position: relative; }
+    .gantt-bar-group { cursor: grab; }
+    .gantt-bar-group:active { cursor: grabbing; }
+    .gantt-resize-handle { cursor: ew-resize; fill: rgba(0,0,0,0.15); transition: fill 0.15s; }
+    .gantt-resize-handle:hover { fill: #2563eb; }
+
+    /* Modals */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: white; border-radius: 16px; width: 100%; max-width: 600px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); animation: modalIn 0.2s ease-out; }
+    .modal-box.lg { max-width: 820px; }
+    .modal-box.xl { max-width: 980px; }
+    @keyframes modalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+    .modal-header { padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 16px; font-weight: 800; color: var(--slate-900); }
+    .modal-body { padding: 24px; max-height: 75vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px; background: #f8fafc; }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label { font-size: 12px; font-weight: 700; color: var(--slate-700); }
+    .form-input, .form-select, .form-textarea { width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; font-family: inherit; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    .progress-bar-bg { width: 100%; background: #f1f5f9; height: 8px; border-radius: 999px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: var(--primary); border-radius: 999px; }
+    .progress-bar-fill.delayed { background: var(--danger); }
+
+    /* Tabs */
+    .tab-btn { padding: 8px 14px; border-radius: 8px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: var(--slate-500); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; }
+    .tab-btn:hover { background: #f1f5f9; color: var(--slate-800); }
+    .tab-btn.active-tab { background: #eff6ff; color: var(--primary); box-shadow: inset 0 0 0 1px #bfdbfe; }
+
+    /* Rich Text Editor */
+    .rich-editor-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-bottom: none; border-top-left-radius: 8px; border-top-right-radius: 8px; align-items: center; }
+    .rich-btn { padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; background: white; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .rich-btn:hover { background: #eff6ff; border-color: #93c5fd; }
+    .rich-editor-content { min-height: 140px; max-height: 280px; overflow-y: auto; padding: 12px; border: 1px solid #cbd5e1; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; outline: none; background: white; font-size: 13px; line-height: 1.6; }
+    .rich-editor-content:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
+
+    /* File Drop Zone */
+    .dropzone { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 16px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.15s; }
+    .dropzone:hover, .dropzone.dragover { border-color: var(--primary); background: #eff6ff; }
+    .attachment-pill { display: inline-flex; align-items: center; gap: 6px; background: white; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; margin: 4px; }
+
+    /* Toast Notification */
+    #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: var(--slate-900); color: white; padding: 12px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 10px; animation: toastIn 0.3s ease; }
+    @keyframes toastIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar Navigation (2-Tier & Collapsible) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <div class="logo-icon">PM</div>
+        <div class="sidebar-hide-on-collapse">
+          <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">B2B 專案管理系統</div>
+        </div>
+      </div>
+      <button class="sidebar-toggle-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="收合 / 展開側邊欄">
+        ◀
+      </button>
+    </div>
+    
+    <nav class="nav-menu">
+      <!-- ================= TIER 1: 全局總覽、內部管理與專案清單 ================= -->
+      <div id="sidebar-tier-1">
+        <button class="nav-btn active" id="nav-btn-dashboard" onclick="navTo('dashboard', this)" title="專案總覽" style="margin-top: 8px;">
+          <span>📊</span>
+          <span class="sidebar-hide-on-collapse">專案總覽</span>
+        </button>
+
+        <!-- 內部管理 -->
+        <div class="nav-section-title sidebar-hide-on-collapse" id="nav-section-internal" style="margin-top:10px;">內部管理</div>
+        <button class="nav-btn" id="nav-btn-members" onclick="navTo('members', this)" title="員工管理">
+          <span>👥</span>
+          <span class="sidebar-hide-on-collapse">員工管理</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="badge-members-count">6</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-roles" onclick="navTo('roles', this)" title="角色管理">
+          <span>🛡️</span>
+          <span class="sidebar-hide-on-collapse">角色管理</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="badge-roles-count">6</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-clients" onclick="navTo('clients', this)" title="客戶管理">
+          <span>🏢</span>
+          <span class="sidebar-hide-on-collapse">客戶管理</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="badge-clients-count">2</span>
+        </button>
+
+        <!-- 專案管理 -->
+        <div class="nav-section-title sidebar-hide-on-collapse" id="nav-section-project" style="margin-top:10px;">專案管理</div>
+        <button class="nav-btn" id="nav-btn-projects" onclick="navTo('projects', this)" title="所有專案管理">
+          <span>📁</span>
+          <span class="sidebar-hide-on-collapse">所有專案總表</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="badge-projects-count">2</span>
+        </button>
+
+        <!-- Dynamic Quick Project Entry List in Tier 1 -->
+        <div class="sidebar-hide-on-collapse" style="margin-top:8px; display:flex; flex-direction:column; gap:4px;" id="sidebar-project-quick-list"></div>
+      </div>
+
+      <!-- ================= TIER 2: 專案專屬排程與追蹤 ================= -->
+      <div id="sidebar-tier-2" style="display:none;">
+        <!-- Left-top Back Button to Tier 1 -->
+        <div class="sidebar-back-box">
+          <button class="back-btn" onclick="exitProjectTier()" title="點擊返回上一層">
+            <span style="font-size:16px; font-weight:900;">←</span>
+            <span class="sidebar-hide-on-collapse">返回上一層 (總覽/內部管理)</span>
+          </button>
+        </div>
+
+        <!-- Active Project Card in Tier 2 -->
+        <div class="tier2-proj-badge-card sidebar-hide-on-collapse">
+          <div style="font-size:10px; font-weight:800; color:#38bdf8; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
+            <span>目前操作專案</span>
+            <span style="color:#10b981;">● 已進入工作區</span>
+          </div>
+          <div id="tier2-proj-code" style="font-size:11px; font-family:monospace; color:#38bdf8; font-weight:700; margin-top:3px;">POC-2609-BB-02</div>
+          <div id="tier2-proj-title" style="font-size:13px; font-weight:800; color:white; line-height:1.3; margin-top:2px;">BB專案</div>
+          <div id="tier2-proj-client" style="font-size:11px; color:#94a3b8; margin-top:2px;">所屬客戶: BBB</div>
+          
+          <select id="tier2-project-select" class="project-switcher-select" style="margin-top:8px;" onchange="enterProjectTier(this.value)">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <!-- Project Specific Modules in Tier 2 -->
+        <div class="nav-section-title sidebar-hide-on-collapse" id="nav-section-tier2">專案排程與追蹤</div>
+        
+        <button class="nav-btn" id="nav-btn-gantt" onclick="navTo('gantt', this)" title="甘特排程">
+          <span>📅</span>
+          <span class="sidebar-hide-on-collapse">甘特排程</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-worklogs" onclick="navTo('worklogs', this)" title="工時日誌">
+          <span>⏱️</span>
+          <span class="sidebar-hide-on-collapse">工時日誌</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="tier2-badge-worklogs">3</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-tasks" onclick="navTo('tasks', this)" title="任務追蹤">
+          <span>📋</span>
+          <span class="sidebar-hide-on-collapse">任務追蹤</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="tier2-badge-tasks">6</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-issues" onclick="navTo('issues', this)" title="問題與測試追蹤">
+          <span>🐞</span>
+          <span class="sidebar-hide-on-collapse">問題與測試追蹤</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="tier2-badge-issues">2</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Hidden Backup Input -->
+    <input type="file" id="json-file-input" style="display:none;" onchange="importJSONBackup(event)">
+
+    <div id="sidebar-user-block" style="padding: 14px 16px; border-top: 1px solid #1e293b; font-size: 12px; background: rgba(15,23,42,0.6);">
+      <div style="font-weight: 700; color: white;">載入身分中...</div>
+      <div style="color: #10b981; font-size: 11px; margin-top: 2px;" id="firebase-status-badge">● Firebase Online (已即時連線)</div>
+    </div>
+  </aside>
+
+  <!-- Main Wrapper -->
+  <div class="main-wrapper">
+    <header class="top-header">
+      <div style="font-weight: 800; font-size: 15px; color: var(--slate-800);">B2B 企業專案管理與甘特排程系統</div>
+      
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <!-- Role Simulator Quick Switch -->
+        <div style="display: flex; align-items: center; gap: 8px; background: #f1f5f9; padding: 4px 10px; border-radius: 8px; border: 1px solid #cbd5e1;">
+          <label style="font-size: 11px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="checkbox" id="header-simulator-toggle" checked onchange="toggleRoleSimulator(this.checked)">
+            <span>測試角色切換</span>
+          </label>
+          <select id="header-role-simulator-select" onchange="onRoleSimulatorChange(this.value)" style="font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; color: #1e293b; outline: none;">
+            <option value="self">本人身分 (自動偵測) irene [已驗證]</option>
+            <option value="role-pm">專案經理 (PM)</option>
+            <option value="role-dev">全端工程師</option>
+            <option value="role-ui">UI/UX 設計師</option>
+            <option value="role-qa">QA 測試工程師</option>
+            <option value="role-client">客戶窗口</option>
+            <option value="role-admin">系統管理員</option>
+          </select>
+        </div>
+
+        <div id="header-user-badge"></div>
+        <span style="font-size: 12px; color: var(--slate-600); font-family: monospace;">今日: 2026-09-09</span>
+        <span class="badge badge-success">系統正常</span>
+      </div>
+    </header>
+
+    <main class="content-area">
+
+      <!-- ================= 1. DASHBOARD PAGE ================= -->
+      <div id="page-dashboard">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">專案總覽</h1>
+            <p class="page-subtitle">即時監控主專案進度、累計填報工時、預估對比與延誤預警看板</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-project-dash" onclick="openProjectModal()">+ 新增主專案</button>
+        </div>
+
+        <div class="delay-alert" id="dashboard-delay-banner" style="display:none; background:#ffe4e6; border:1px solid #fecdd3; padding:12px 16px; border-radius:8px; margin-bottom:16px;"></div>
+
+        <div class="grid-6">
+          <div class="metric-card" onclick="navTo('clients')">
+            <div class="metric-title">合作客戶數</div>
+            <div class="metric-num" id="kpi-clients">2</div>
+          </div>
+          <div class="metric-card" onclick="navTo('members')">
+            <div class="metric-title">團隊總員工數</div>
+            <div class="metric-num" style="color: var(--purple);" id="kpi-members">6</div>
+          </div>
+          <div class="metric-card" onclick="navTo('projects')">
+            <div class="metric-title">進行中主專案</div>
+            <div class="metric-num" id="kpi-projects">2</div>
+          </div>
+          <div class="metric-card" onclick="navTo('projects')">
+            <div class="metric-title">進度延誤專案數</div>
+            <div class="metric-num" style="color: var(--danger);" id="kpi-delayed">0</div>
+          </div>
+          <div class="metric-card" onclick="navTo('issues')">
+            <div class="metric-title">Critical Bug 數</div>
+            <div class="metric-num" style="color: var(--warning);" id="kpi-bugs">0</div>
+          </div>
+          <div class="metric-card" onclick="navTo('worklogs')">
+            <div class="metric-title">累積總累積工時</div>
+            <div class="metric-num" style="color: var(--primary);" id="kpi-worklogs-hours">25.5h</div>
+          </div>
+        </div>
+
+        <div class="page-title-row" style="margin-bottom: 16px;">
+          <h2 style="font-size: 16px; font-weight: 800;">主專案進度與團隊陣容</h2>
+        </div>
+        <div class="grid-2" id="dashboard-project-cards"></div>
+      </div>
+
+      <!-- ================= 2. MEMBERS PAGE (內部管理 - 員工管理) ================= -->
+      <div id="page-members" style="display: none;">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">員工管理 (Member Management)</h1>
+            <p class="page-subtitle">建立員工帳號、身份、重新設定密碼、指派各功能權限力矩陣</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-member" onclick="openMemberModal()">+ 新增員工 / 成員</button>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>員工姓名</th>
+                <th>職務角色 / 權限</th>
+                <th>聯絡 EMAIL</th>
+                <th>聯絡電話</th>
+                <th>運作專案</th>
+                <th style="text-align: right;">操作項目</th>
+              </tr>
+            </thead>
+            <tbody id="members-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 3. ROLES PAGE (內部管理 - 角色管理) ================= -->
+      <div id="page-roles" style="display: none;">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">角色與權限管理</h1>
+            <p class="page-subtitle">自訂角色與功能權限矩陣 Matrix，支援角色權限模擬體驗與動態控管</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-role" onclick="openRoleMatrixModal()">+ 新增自訂角色</button>
+        </div>
+
+        <!-- Role Simulator Banner -->
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <div style="font-weight: 800; color: #15803d; font-size: 13px; display:flex; align-items:center; gap:6px;">
+              <span>⚡ 切換測試角色 UI 模擬器 (Role Simulator)</span>
+            </div>
+            <div style="font-size: 12px; color: #166534; margin-top: 2px;">選擇角色立即體驗專屬權限視角，角色切換後整體動態權限將即時生效。</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 700; color: #166534;">模擬身分:</span>
+            <select id="roles-page-simulator-select" class="form-select" style="width: 220px; padding: 6px 10px; font-weight: 700;" onchange="onRoleSimulatorChange(this.value)">
+              <option value="self">本人身分 (全端 PM / 登入身份)</option>
+              <option value="role-pm">專案經理 (PM)</option>
+              <option value="role-dev">全端工程師</option>
+              <option value="role-ui">UI/UX 設計師</option>
+              <option value="role-qa">QA 測試工程師</option>
+              <option value="role-client">客戶窗口</option>
+              <option value="role-admin">系統管理員</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>角色名稱</th>
+                <th>角色權限說明</th>
+                <th>角色指派與職責</th>
+                <th>已授權模組矩陣</th>
+                <th style="text-align: right;">操作矩陣 Matrix 變更</th>
+              </tr>
+            </thead>
+            <tbody id="roles-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 4. CLIENTS PAGE (內部管理 - 客戶管理) ================= -->
+      <div id="page-clients" style="display: none;">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">客戶管理</h1>
+            <p class="page-subtitle">維護 B2B 客戶公司資料、客戶統編與主要對接窗口</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-client" onclick="openClientModal()">+ 新增客戶</button>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>客戶代碼與公司名稱</th>
+                <th>對接窗口</th>
+                <th>聯絡 EMAIL</th>
+                <th>聯絡電話</th>
+                <th style="text-align: right;">操作項目</th>
+              </tr>
+            </thead>
+            <tbody id="clients-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 5. PROJECTS PAGE (專案管理 - 專案管理) ================= -->
+      <div id="page-projects" style="display: none;">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">專案管理</h1>
+            <p class="page-subtitle">管理所有主專案、分派目標完工日、點選可切換為當前操作專案</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-project-table" onclick="openProjectModal()">+ 建立主專案</button>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>專案編號與名稱</th>
+                <th>所屬客戶</th>
+                <th>專案團隊成員</th>
+                <th>預估 vs 實際工時</th>
+                <th>完工日</th>
+                <th>狀態</th>
+                <th style="text-align: right;">操作項目</th>
+              </tr>
+            </thead>
+            <tbody id="projects-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 6. GANTT CHART PAGE (專案管理 - 甘特排程) ================= -->
+      <div id="page-gantt" style="display: none;">
+        <!-- Active Project Banner -->
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">甘特圖排程 (Gantt Chart)</h1>
+            <p class="page-subtitle">點擊各層級可收合/展開。橫條上方拖曳兩側邊緣可調整排程。</p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <div style="display:flex; align-items:center; gap:6px; background: white; padding: 4px 10px; border-radius: 8px; border: 1px solid #cbd5e1;">
+              <span style="font-size: 12px; font-weight: 700; color: #475569;">&#36984;&#25799;&#23560;&#26696;:</span>
+              <select class="form-select banner-project-select" onchange="switchActiveProject(this.value); renderGraphicalGantt();" style="border: none; outline: none; font-size: 13px; font-weight: 700; color: #1e293b; background: transparent; cursor: pointer; padding: 2px 4px;">
+              </select>
+            </div>
+            <button class="btn btn-primary" id="btn-gantt-add-phase" onclick="inlineAddPhase()">+ 新增階段 (第一層)</button>
+            <button class="btn btn-secondary" id="btn-gantt-export" onclick="exportExcelReports()">📤 匯出甘特排程 CSV</button>
+          </div>
+        </div>
+
+        <div class="table-card" style="margin-bottom: 20px; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; flex-wrap:wrap; gap:10px;">
+          <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 12px; height: 12px; background: #1e3a8a; border-radius: 2px;"></span>
+              <strong>階段 (Phase)</strong>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 12px; height: 12px; background: #3b82f6; border-radius: 2px;"></span>
+              <strong>大功能 (Module)</strong>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 12px; height: 12px; background: #0284c7; border-radius: 2px;"></span>
+              <strong>小功能 (Task)</strong>
+            </div>
+            <label style="display: flex; align-items: center; gap: 6px; font-weight: bold; color: #1e40af; cursor:pointer;">
+              <input type="checkbox" id="gantt-publish-worklog-check" checked onchange="togglePublishToWorkLogs(this.checked)">
+              <span>發佈本專案所有排程至工時日誌，方便成員可直接點選填報</span>
+            </label>
+          </div>
+          <div style="font-family: monospace; color: var(--slate-600);" id="gantt-range-label">
+            排程區間: 2026-08-01 ~ 2026-09-15
+          </div>
+        </div>
+
+        <div class="gantt-wrapper">
+          <div class="gantt-left-panel">
+            <div class="gantt-left-header">
+              <span>專案結構清單 (Phase / Module / Task)</span>
+              <button class="btn btn-primary btn-xs" id="btn-gantt-inline-add-phase" style="font-weight:800; padding:3px 8px;" title="新增第一層階段" onclick="inlineAddPhase()">+ 新增階段</button>
+            </div>
+            <div id="gantt-left-rows"></div>
+          </div>
+          <div class="gantt-right-timeline" id="gantt-timeline-container"></div>
+        </div>
+      </div>
+
+      <!-- ================= 7. WORK LOGS PAGE (專案管理 - 工時日誌) ================= -->
+      <div id="page-worklogs" style="display: none;">
+        <!-- Active Project Banner -->
+        <div class="active-project-banner">
+          <div class="active-project-info">
+            <span class="active-project-badge">工時日誌連動中</span>
+            <span class="active-project-title" id="worklogs-banner-title">載入中...</span>
+            <span class="active-project-client" id="worklogs-banner-client"></span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn btn-secondary btn-xs" onclick="exitProjectTier()" style="font-weight:700; color:#2563eb;">← 返回上一層</button>
+            <span style="font-size:12px; color:#475569;">切換專案:</span>
+            <select class="form-select banner-project-select" onchange="enterProjectTier(this.value)" style="width:auto; padding:4px 8px; font-size:12px;"></select>
+          </div>
+        </div>
+
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">工時日誌</h1>
+            <p class="page-subtitle">每日填報工時清單: 工作內容備註、任務實際工時自動累計到人員統計</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-worklog" onclick="openWorkLogModal()">+ 填報工時日誌 (Log Work)</button>
+        </div>
+
+        <!-- Member Work Hours Summary Card -->
+        <div class="card" style="margin-bottom: 24px;">
+          <h3 style="font-size: 15px; font-weight: 800; margin-bottom: 12px;">成員工時統計總覽</h3>
+          <div id="member-hours-summary-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;"></div>
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>對應任務與所屬專案</th>
+                <th>填報人員 MEMBER</th>
+                <th>投入工時 (HOURS)</th>
+                <th>工作說明與備註 NOTES</th>
+                <th style="text-align: right;">操作項目</th>
+              </tr>
+            </thead>
+            <tbody id="worklogs-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 8. TASKS PAGE (專案管理 - 任務追蹤) ================= -->
+      <div id="page-tasks" style="display: none;">
+        <!-- Active Project Banner -->
+        <div class="active-project-banner">
+          <div class="active-project-info">
+            <span class="active-project-badge">任務追蹤連動中</span>
+            <span class="active-project-title" id="tasks-banner-title">載入中...</span>
+            <span class="active-project-client" id="tasks-banner-client"></span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn btn-secondary btn-xs" onclick="exitProjectTier()" style="font-weight:700; color:#2563eb;">← 返回上一層</button>
+            <span style="font-size:12px; color:#475569;">切換專案:</span>
+            <select class="form-select banner-project-select" onchange="enterProjectTier(this.value)" style="width:auto; padding:4px 8px; font-size:12px;"></select>
+          </div>
+        </div>
+
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">任務與議題</h1>
+            <p class="page-subtitle">整合目前排程，系統整合: Bug 修正與需求變更 (CR)，以頁籤與 Tag 標籤統一管理</p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary" id="btn-tasks-export" onclick="exportExcelReports()">📤 匯出 CSV 報表</button>
+            <button class="btn btn-primary" id="btn-add-task" onclick="openTaskModal()">+ 新增任務 / 議題</button>
+          </div>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap;">
+          <input type="text" id="tasks-search-input" class="form-input" placeholder="🔍 搜尋任務、框架、人員或註記..." style="width: 320px;" oninput="renderTasksTable()">
+        </div>
+
+        <!-- Task Type Tabs Bar -->
+        <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; flex-wrap: wrap;">
+          <button class="tab-btn active-tab" onclick="setTaskFilter('all', this)">
+            全份任務與議題 <span class="badge badge-purple" id="tab-cnt-all">6</span>
+          </button>
+          <button class="tab-btn" onclick="setTaskFilter('功能', this)">
+            🌟 功能開發 <span class="badge badge-info" id="tab-cnt-feature">5</span>
+          </button>
+          <button class="tab-btn" onclick="setTaskFilter('優化', this)">
+            ⚡ 系統優化 <span class="badge badge-info" id="tab-cnt-opt">0</span>
+          </button>
+          <button class="tab-btn" onclick="setTaskFilter('Bug', this)">
+            🐛 Bug 瑕疵 <span class="badge badge-danger" id="tab-cnt-bug">0</span>
+          </button>
+          <button class="tab-btn" onclick="setTaskFilter('需求變更', this)">
+            📝 需求變更 (CR) <span class="badge badge-warning" id="tab-cnt-cr">0</span>
+          </button>
+        </div>
+
+        <!-- Hierarchical Phase -> Module -> Task Groups Container -->
+        <div id="tasks-hierarchical-container" style="display: flex; flex-direction: column; gap: 18px;"></div>
+      </div>
+
+      <!-- ================= 9. ISSUES PAGE (專案管理 - 問題與測試追蹤) ================= -->
+      <div id="page-issues" style="display: none;">
+        <!-- Active Project Banner -->
+        <div class="active-project-banner">
+          <div class="active-project-info">
+            <span class="active-project-badge">測試追蹤連動中</span>
+            <span class="active-project-title" id="issues-banner-title">載入中...</span>
+            <span class="active-project-client" id="issues-banner-client"></span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn btn-secondary btn-xs" onclick="exitProjectTier()" style="font-weight:700; color:#2563eb;">← 返回上一層</button>
+            <span style="font-size:12px; color:#475569;">切換專案:</span>
+            <select class="form-select banner-project-select" onchange="enterProjectTier(this.value)" style="width:auto; padding:4px 8px; font-size:12px;"></select>
+          </div>
+        </div>
+
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">問題與測試追蹤</h1>
+            <p class="page-subtitle">獨立提出與修復專案測試之 Bug 瑕疵、測試對話記錄、搜集與回覆</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-issue" onclick="openIssueModal()">+ 提報問題 / 測試記錄</button>
+        </div>
+
+        <!-- Search Bar -->
+        <div style="display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+          <input type="text" id="issues-search-input" class="form-input" placeholder="🔍 搜尋專案、對話記錄、提問內容..." style="width: 320px;" oninput="renderIssuesTable()">
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>提報日期</th>
+                <th>追蹤類型</th>
+                <th>問題 / 測試標題</th>
+                <th>所屬專案</th>
+                <th>負責人員</th>
+                <th>處理狀態</th>
+                <th>預計交付</th>
+                <th style="text-align: right;">操作項目與備註內容</th>
+              </tr>
+            </thead>
+            <tbody id="issues-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- 1. Member Modal -->
+  <div class="modal-overlay" id="modal-member" onclick="handleOverlayClick(event, 'modal-member')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-member-title">新增團隊員工 / 成員</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-member')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-member-id">
+        <div class="form-group">
+          <label class="form-label">員工姓名 *</label>
+          <input type="text" id="form-member-name" class="form-input" placeholder="例如: 謝技術主管 (John Hsieh)">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">職務角色 / 職稱 *</label>
+            <select id="form-member-role" class="form-select">
+              <option value="專案經理 (PM)">專案經理 (PM)</option>
+              <option value="全端工程師">全端工程師</option>
+              <option value="UI/UX 設計師">UI/UX 設計師</option>
+              <option value="QA 測試工程師">QA 測試工程師</option>
+              <option value="客戶窗口">客戶窗口</option>
+              <option value="系統管理員">系統管理員</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">聯絡電話</label>
+            <input type="text" id="form-member-phone" class="form-input" placeholder="+886 912-345-678">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">登入 Gmail / 授權 Email *</label>
+          <input type="email" id="form-member-email" class="form-input" placeholder="user@company.com">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-member')">取消</button>
+        <button class="btn btn-primary" onclick="saveMember()">儲存成員資料</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Client Modal -->
+  <div class="modal-overlay" id="modal-client" onclick="handleOverlayClick(event, 'modal-client')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-client-title">新增客戶資料</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-client')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-client-id">
+        <div class="form-group">
+          <label class="form-label">客戶公司名稱 *</label>
+          <input type="text" id="form-client-name" class="form-input" placeholder="例如: 奧斯企業">
+        </div>
+        <div class="form-group">
+          <label class="form-label">客戶統編 *</label>
+          <input type="text" id="form-client-code" class="form-input" placeholder="例如: 24578937">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">對接窗口 *</label>
+            <input type="text" id="form-client-contact" class="form-input" placeholder="例如: 陳專員">
+          </div>
+          <div class="form-group">
+            <label class="form-label">聯絡 Email *</label>
+            <input type="email" id="form-client-email" class="form-input" placeholder="contact@company.com">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">聯絡電話</label>
+          <input type="text" id="form-client-phone" class="form-input" placeholder="+886 2-1234-5678">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-client')">取消</button>
+        <button class="btn btn-primary" onclick="saveClient()">儲存客戶資料</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Project Modal (新增/編輯主專案) -->
+  <div class="modal-overlay" id="modal-project" onclick="handleOverlayClick(event, 'modal-project')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-project-title">新增主專案</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-project')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-project-id">
+        <div class="form-group">
+          <label class="form-label">主專案名稱 *</label>
+          <input type="text" id="form-project-name" class="form-input" placeholder="例如: 新一代 B2B 電商門戶網站系統">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">專案類型 *</label>
+            <select id="form-project-type" class="form-select">
+              <option value="外部專案 (EXT)">外部專案 (EXT)</option>
+              <option value="內部專案 (INT)">內部專案 (INT)</option>
+              <option value="概念驗證 (POC)">概念驗證 (POC)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">所屬客戶 *</label>
+            <select id="form-project-client" class="form-select"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">專案編號 (規格: 年份-客戶簡寫-序號) *</label>
+          <input type="text" id="form-project-code" class="form-input" placeholder="PROJ-03">
+        </div>
+        <div class="form-group">
+          <label class="form-label">專案團隊成員 (Team Members) *</label>
+          <div id="form-project-members-checkboxes" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #cbd5e1; max-height:140px; overflow-y:auto;"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">專案簡介與說明</label>
+          <textarea id="form-project-desc" class="form-textarea" rows="2" placeholder="簡述專案目標與涵蓋範圍..."></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">開工日期 *</label>
+            <input type="date" id="form-project-start" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">預計完工日 *</label>
+            <input type="date" id="form-project-end" class="form-input">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">專案狀態</label>
+          <select id="form-project-status" class="form-select">
+            <option value="進行中">進行中</option>
+            <option value="規劃中">規劃中</option>
+            <option value="已完工">已完工</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-project')">取消</button>
+        <button class="btn btn-primary" onclick="saveProject()">儲存主專案</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Role Matrix Modal (新增/編輯自訂角色權限 Matrix) -->
+  <div class="modal-overlay" id="modal-role-matrix" onclick="handleOverlayClick(event, 'modal-role-matrix')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-role-matrix-title">新增自訂角色權限 Matrix</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-role-matrix')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-role-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">角色名稱 *</label>
+            <input type="text" id="form-role-name" class="form-input" placeholder="例如: 助理工程師">
+          </div>
+          <div class="form-group">
+            <label class="form-label">角色指派與職責</label>
+            <input type="text" id="form-role-desc" class="form-input" placeholder="簡述此角色的職責與權限範圍...">
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+          <h4 style="font-size: 13px; font-weight: 800; color: #1e293b;">模組細部權限 Matrix 設定:</h4>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary btn-xs" onclick="toggleAllMatrixCheckboxes(true)">全部勾選</button>
+            <button class="btn btn-secondary btn-xs" onclick="toggleAllMatrixCheckboxes(false)">全部清空</button>
+          </div>
+        </div>
+
+        <!-- Matrix Permissions Sections -->
+        <div style="display: flex; flex-direction: column; gap: 14px; max-height: 420px; overflow-y: auto; padding-right: 4px;">
+          
+          <!-- 專案總覽 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">📊 專案總覽</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('dashboard', true)">全選</button>
+            </div>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+              <input type="checkbox" class="matrix-chk" data-group="dashboard" value="dashboard_view" checked>
+              <span>檢視總覽 KPI (view)</span>
+            </label>
+          </div>
+
+          <!-- 內部管理 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">📁 內部管理</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('internal', true)">全選</button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div>
+                <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:4px;">👥 員工管理</div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="member_view" checked> 檢視列表 (view)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="member_create" checked> 新增員工 (create)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="member_edit" checked> 編輯員工 (edit)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="member_delete" checked> 刪除員工 (delete)</label>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:4px;">🛡️ 角色與權限管理</div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="role_view" checked> 檢視列表 (view)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="role_edit" checked> 編輯權限 Matrix (edit)</label>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:4px;">🏢 客戶管理</div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="client_view" checked> 檢視列表 (view)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="client_create" checked> 新增客戶 (create)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="client_edit" checked> 編輯客戶 (edit)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="client_delete" checked> 刪除客戶 (delete)</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 專案管理 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">📁 專案管理</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('project_manage', true)">全選</button>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label><input type="checkbox" class="matrix-chk" data-group="project_manage" value="proj_view" checked> 檢視列表 (view)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="project_manage" value="proj_create" checked> 新增主專案 (create)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="project_manage" value="proj_edit" checked> 編輯專案 (edit)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="project_manage" value="proj_delete" checked> 刪除專案 (delete)</label>
+            </div>
+          </div>
+
+          <!-- 甘特排程 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">📈 甘特排程</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('gantt_manage', true)">全選</button>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_view" checked> 檢視甘特圖 (view)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_add_phase" checked> 新增階段 (add_phase)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_add_task" checked> 新增模組與任務 (add_module_task)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_drag" checked> 拖曳調整日期 (drag_adjust)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_delete" checked> 刪除項目 (delete)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_export" checked> 匯出 CSV (export_csv)</label>
+            </div>
+          </div>
+
+          <!-- 工時日誌 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">⏱️ 工時日誌</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('worklog_manage', true)">全選</button>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label><input type="checkbox" class="matrix-chk" data-group="worklog_manage" value="worklog_view" checked> 檢視列表 (view)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="worklog_manage" value="worklog_create" checked> 填報工時 (create)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="worklog_manage" value="worklog_edit" checked> 編輯工時 (edit)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="worklog_manage" value="worklog_delete" checked> 刪除工時 (delete)</label>
+            </div>
+          </div>
+
+          <!-- 任務追蹤 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">📋 任務追蹤</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('task_manage', true)">全選</button>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label><input type="checkbox" class="matrix-chk" data-group="task_manage" value="task_view" checked> 檢視列表 (view)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="task_manage" value="task_create" checked> 新增任務 (create)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="task_manage" value="task_edit" checked> 編輯任務 (edit)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="task_manage" value="task_delete" checked> 刪除任務 (delete)</label>
+            </div>
+          </div>
+
+          <!-- 問題與測試追蹤 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">🐞 問題與測試追蹤</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('issue_manage', true)">全選</button>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label><input type="checkbox" class="matrix-chk" data-group="issue_manage" value="issue_view" checked> 檢視列表 (view)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="issue_manage" value="issue_create" checked> 提報問題與測試 (create)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="issue_manage" value="issue_edit" checked> 編輯記錄 (edit)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="issue_manage" value="issue_delete" checked> 刪除記錄 (delete)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="issue_manage" value="issue_comment" checked> 檢視與發表回覆 (comment)</label>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-role-matrix')">取消</button>
+        <button class="btn btn-primary" onclick="saveRoleMatrix()">儲存授權權限矩陣</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Task Modal (新增/編輯任務/排程項目) -->
+  <div class="modal-overlay" id="modal-task" onclick="handleOverlayClick(event, 'modal-task')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-task-title">新增任務 / 排程項目</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-task')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-task-id">
+        <div class="form-group">
+          <label class="form-label">所屬主專案 *</label>
+          <select id="form-task-project" class="form-select" onchange="onTaskProjectSelectChanged(this.value)"></select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">第一階: 階段 (Phase) *</label>
+            <select id="form-task-phase" class="form-select" onchange="onTaskPhaseSelectChanged(this.value)"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">第二階: 功能大項 (Module) *</label>
+            <select id="form-task-module" class="form-select"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">項目 (WBS) *</label>
+            <input type="text" id="form-task-wbs" class="form-input" placeholder="例如: 1.1.1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">任務名稱 *</label>
+            <input type="text" id="form-task-title" class="form-input" placeholder="請輸入任務名稱">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">任務類型 *</label>
+            <select id="form-task-type" class="form-select">
+              <option value="功能">功能 (Feature)</option>
+              <option value="優化">優化 (Optimization)</option>
+              <option value="Bug">Bug 瑕疵</option>
+              <option value="需求變更">需求變更 (CR)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">待配人員 (Assignee)</label>
+            <select id="form-task-assignee" class="form-select"></select>
+          </div>
+        </div>
+        
+        <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <div style="font-weight:700; font-size:12px; color:#1e40af; margin-bottom:8px;">📅 預估排程與預估工時 (Planned Schedule)</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">預估開始日期 *</label>
+              <input type="date" id="form-task-start" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">預估結束日期 *</label>
+              <input type="date" id="form-task-due" class="form-input">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:8px;">
+            <label class="form-label">預估所需工時 (小時)</label>
+            <input type="number" id="form-task-est-hours" class="form-input" placeholder="8" value="8">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">狀態</label>
+            <select id="form-task-status" class="form-select">
+              <option value="進行中">進行中</option>
+              <option value="待處理">待處理</option>
+              <option value="已完成">已完成</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">危害等級 (Bug 適用)</label>
+            <select id="form-task-severity" class="form-select">
+              <option value="無">無</option>
+              <option value="低">低</option>
+              <option value="中等">中等</option>
+              <option value="嚴重障礙">嚴重障礙 (Critical)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-task')">取消</button>
+        <button class="btn btn-primary" onclick="saveTask()">儲存任務 / 議題</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. WorkLog Modal (填報工時日誌) -->
+  <div class="modal-overlay" id="modal-worklog" onclick="handleOverlayClick(event, 'modal-worklog')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-worklog-title">填報工時日誌 (Log Work)</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-worklog')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-worklog-id">
+        <div class="form-group">
+          <label class="form-label">選擇任務 (連動當前主專案) *</label>
+          <select id="form-worklog-task" class="form-select"></select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">填報日期 *</label>
+            <input type="date" id="form-worklog-date" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">投入工時 (小時) *</label>
+            <input type="number" id="form-worklog-hours" class="form-input" min="0.5" step="0.5" value="4">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">填報人員姓名 *</label>
+          <input type="text" id="form-worklog-user" class="form-input" placeholder="irene (專案經理 (PM))">
+        </div>
+        <div class="form-group">
+          <label class="form-label">工作說明與備註簡述</label>
+          <textarea id="form-worklog-notes" class="form-textarea" rows="3" placeholder="簡述今日完成之實質內容..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-worklog')">取消</button>
+        <button class="btn btn-primary" onclick="saveWorkLog()">儲存工時日誌</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Issue Modal (提報問題與測試追蹤 - HTML 富文本 / 附件) -->
+  <div class="modal-overlay" id="modal-issue" onclick="handleOverlayClick(event, 'modal-issue')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-issue-title">提報問題與測試追蹤 (HTML 富文本 / 附件)</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-issue')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-issue-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">所屬主專案 *</label>
+            <select id="form-issue-project" class="form-select" onchange="onIssueProjectSelectChanged(this.value)"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">關聯模組與任務 (選填: 針對特定進程與所測試追蹤)</label>
+            <select id="form-issue-task" class="form-select"></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">追蹤類別 *</label>
+            <select id="form-issue-category" class="form-select">
+              <option value="問題瑕疵">問題瑕疵</option>
+              <option value="驗收測試">驗收測試</option>
+              <option value="需求變更">需求變更 (CR)</option>
+              <option value="優化反饋">優化反饋</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">類別 / 問題標題 *</label>
+            <input type="text" id="form-issue-title-input" class="form-input" placeholder="例如: 登出~密碼重置異常 或 表單檢核...">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">負責人員</label>
+            <select id="form-issue-assignee" class="form-select"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">處理狀態 *</label>
+            <select id="form-issue-status" class="form-select">
+              <option value="已確認">已確認</option>
+              <option value="待處理">待處理</option>
+              <option value="處理中">處理中</option>
+              <option value="已修復">已修復</option>
+              <option value="已關閉">已關閉</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- HTML Rich Text Editor -->
+        <div class="form-group">
+          <label class="form-label">問題描述 (HTML 富文本) *</label>
+          <div class="rich-editor-toolbar">
+            <button type="button" class="rich-btn" onclick="execEditorCmd('bold')"><b>B</b></button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('italic')"><i>I</i></button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('underline')"><u>U</u></button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('strikeThrough')"><s>S</s></button>
+            <span style="color:#cbd5e1;">|</span>
+            <button type="button" class="rich-btn" onclick="triggerEditorImage()">🖼️ 上傳圖片</button>
+            <input type="file" id="editor-image-file" style="display:none;" accept="image/*" onchange="insertEditorImageFile(event)">
+            <select class="form-select" style="width:auto; padding:3px 6px; font-size:11px;" onchange="execEditorCmd('formatBlock', this.value)">
+              <option value="div">Normal (內文)</option>
+              <option value="h3">標題 H3</option>
+              <option value="h4">標題 H4</option>
+              <option value="pre">程式碼 Code</option>
+            </select>
+            <select class="form-select" style="width:auto; padding:3px 6px; font-size:11px;" onchange="execEditorCmd('fontName', this.value)">
+              <option value="Microsoft JhengHei">微軟正黑體</option>
+              <option value="Sans Serif">Sans Serif</option>
+              <option value="monospace">等寬字體</option>
+            </select>
+            <span style="color:#cbd5e1;">|</span>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('insertUnorderedList')">• 清單</button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('insertOrderedList')">1. 列表</button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('justifyLeft')">⇤</button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('justifyCenter')">≡</button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('removeFormat')">Tx</button>
+          </div>
+          <div id="issue-editor-content" class="rich-editor-content" contenteditable="true" placeholder="請詳細描述問題背景與測試或程式碼內容..."></div>
+        </div>
+
+        <!-- Attachment Upload Area -->
+        <div class="form-group">
+          <label class="form-label">附件檔案清單 (支援 PDF、Word、Excel、PPT、TXT、JPG、PNG)</label>
+          <div class="dropzone" id="issue-dropzone" onclick="triggerAttachmentSelect()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)">
+            <div style="font-size: 20px; margin-bottom: 4px;">📎</div>
+            <div style="font-weight:700; color:#334155;">點擊或拖曳檔案至此處上傳</div>
+            <div style="font-size:11px; color:#64748b; margin-top:2px;">支援各類 Office 文件與螢幕截圖圖片</div>
+            <input type="file" id="issue-file-input" style="display:none;" multiple onchange="handleAttachmentFiles(event.target.files)">
+          </div>
+          <div id="issue-attachments-list" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-issue')">取消</button>
+        <button class="btn btn-primary" onclick="saveIssue()">儲存並發佈問題與測試追蹤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. Login Modal (帳號密碼登入 & Google SSO) -->
+  <div class="modal-overlay" id="modal-login" onclick="handleOverlayClick(event, 'modal-login')">
+    <div class="modal-box" style="max-width: 460px; padding: 28px 26px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; background: #eff6ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 16px;">
+            🔑
+          </div>
+          <div>
+            <h3 style="font-size: 16px; font-weight: 800; color: #0f172a;">登入 B2B 專案管理系統</h3>
+            <div style="font-size: 11px; color: #64748b;">請選擇成員帳號或輸入已授權之 Email 登入</div>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-login')">✕</button>
+      </div>
+
+      <!-- Quick Select Team Member Demo Login -->
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+        <label class="form-label" style="font-size: 12px; font-weight: 700; color: #1e3a8a; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+          <span>⚡ 快速切換成員身分登入 (Demo)</span>
+        </label>
+        <select id="login-quick-member-select" class="form-select" onchange="onLoginMemberSelect(this.value)" style="font-weight: 600;">
+          <!-- Populated dynamically via JS -->
+        </select>
+        <div style="font-size: 11px; color: #64748b; margin-top: 4px;">點選成員可自動帶入授權 Email，即刻以該成員職責與視角登入。</div>
+      </div>
+
+      <!-- Credentials Form -->
+      <form onsubmit="event.preventDefault(); loginWithCredentials();">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label">員工授權帳號 (Email) *</label>
+          <input type="email" id="login-input-email" class="form-input" value="obilirene@gmail.com" placeholder="請輸入授權 Email..." required>
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label">登入密碼 *</label>
+          <input type="password" id="login-input-password" class="form-input" value="123456" placeholder="請輸入密碼..." required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 10px; font-size: 14px; font-weight: 700; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
+          立即登入系統 ➜
+        </button>
+      </form>
+
+      <!-- Google SSO Divider -->
+      <div style="display: flex; align-items: center; gap: 10px; margin: 16px 0 12px; color: #94a3b8; font-size: 11px;">
+        <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+        <span>或使用第三方單一登入</span>
+        <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+      </div>
+
+      <button type="button" onclick="loginWithGoogle()" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; color: #1e293b; font-weight: 600; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.28v3.13C3.26 21.3 7.35 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.6H1.28C.46 8.23 0 10.06 0 12s.46 3.77 1.28 5.4l4-3.13z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.26 2.7 1.28 6.6l4 3.13c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
+        使用 Google 帳戶 (Gmail) SSO 驗證登入
+      </button>
+
+      <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748b;">
+        <span>🔒 僅限員工管理名單授權之成員登入</span>
+        <button type="button" class="btn btn-secondary btn-xs" onclick="closeModal('modal-login')">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- JavaScript Application State, Engine & Scoping Logic -->
+  <script>
+    const TODAY = '2026-09-09';
+
+    // Core Application State
+    const state = {
+      currentProjectId: 'prj-bb', // Default to POC-2609-BB-02 BB專案 as in user's video
+      simulatedRoleId: 'self',
+      isSimulatorActive: true,
+
+      // Roles & Permission Matrix
+      roles: [
+        {
+          id: 'role-pm',
+          name: '專案經理 (PM)',
+          isSystem: true,
+          description: '負責全專案排程控管、成員指派、客戶窗口對接、預算與工時審核',
+          responsibilities: '專案建立與里程碑、工時簽核、全功能權限無受限，無限制員工與管理權限',
+          permissions: ['dashboard_view', 'member_view', 'member_create', 'member_edit', 'member_delete', 'role_view', 'role_edit', 'client_view', 'client_create', 'client_edit', 'client_delete', 'proj_view', 'proj_create', 'proj_edit', 'proj_delete', 'gantt_view', 'gantt_add_phase', 'gantt_add_task', 'gantt_drag', 'gantt_delete', 'gantt_export', 'worklog_view', 'worklog_create', 'worklog_edit', 'worklog_delete', 'task_view', 'task_create', 'task_edit', 'task_delete', 'issue_view', 'issue_create', 'issue_edit', 'issue_delete', 'issue_comment']
+        },
+        {
+          id: 'role-dev',
+          name: '全端工程師',
+          isSystem: true,
+          description: '開發核心模組 API、前後端功能實作、資料庫架構設計與單元測試驗證',
+          responsibilities: '專注第三階段 API、資料庫與模組撰寫，負責技術文件、工時填報與瑕疵修復能力',
+          permissions: ['dashboard_view', 'proj_view', 'gantt_view', 'gantt_drag', 'worklog_view', 'worklog_create', 'worklog_edit', 'task_view', 'task_create', 'task_edit', 'issue_view', 'issue_create', 'issue_edit', 'issue_comment']
+        },
+        {
+          id: 'role-ui',
+          name: 'UI/UX 設計師',
+          isSystem: true,
+          description: '視覺原型、UI 切版與流程規劃建構，可編輯其所屬任務與工時項目',
+          responsibilities: '視覺模型、UI 切版與響應式切版建置，可編輯所屬任務與工時項目',
+          permissions: ['dashboard_view', 'proj_view', 'gantt_view', 'gantt_drag', 'worklog_view', 'worklog_create', 'worklog_edit', 'task_view', 'task_edit', 'issue_view', 'issue_create', 'issue_comment']
+        },
+        {
+          id: 'role-qa',
+          name: 'QA 測試工程師',
+          isSystem: true,
+          description: '專案測試、驗收標準審核、提出問題瑕疵記錄與檢視整體運作項目',
+          responsibilities: '獨立提出專案測試之 Bug 瑕疵、測試進程追蹤或對話記錄、可編輯問題與提報檢討項目',
+          permissions: ['dashboard_view', 'proj_view', 'gantt_view', 'worklog_view', 'worklog_create', 'task_view', 'issue_view', 'issue_create', 'issue_edit', 'issue_delete', 'issue_comment']
+        },
+        {
+          id: 'role-client',
+          name: '客戶窗口',
+          isSystem: true,
+          description: '外部客戶對接窗口，僅可查看專案進度、檢視問題與發布需求',
+          responsibilities: '外部客戶對接窗口，僅可查看專案進度、檢視問題與發布需求',
+          permissions: ['dashboard_view', 'proj_view', 'gantt_view', 'issue_view', 'issue_create', 'issue_comment']
+        },
+        {
+          id: 'role-admin',
+          name: '系統管理員',
+          isSystem: false,
+          description: '全功能最高管理員權限',
+          responsibilities: '系統日常維護、資料庫備份與最高階授權',
+          permissions: ['dashboard_view', 'member_view', 'member_create', 'member_edit', 'member_delete', 'role_view', 'role_edit', 'client_view', 'client_create', 'client_edit', 'client_delete', 'proj_view', 'proj_create', 'proj_edit', 'proj_delete', 'gantt_view', 'gantt_add_phase', 'gantt_add_task', 'gantt_drag', 'gantt_delete', 'gantt_export', 'worklog_view', 'worklog_create', 'worklog_edit', 'worklog_delete', 'task_view', 'task_create', 'task_edit', 'task_delete', 'issue_view', 'issue_create', 'issue_edit', 'issue_delete', 'issue_comment']
+        }
+      ],
+
+      // Members (Matching Video)
+      members: [
+        { id: 'user-admin', name: 'irene', role: '專案經理 (PM)', email: 'obilirene@gmail.com', phone: '+886 912-111-222' },
+        { id: 'user-1', name: '陳專案經理 (Alex Chen)', role: '專案經理 (PM)', email: 'alex.chen@company.com', phone: '+886 922-222-333' },
+        { id: 'user-2', name: '林資深工程師 (Sarah Lin)', role: '全端工程師', email: 'sarah.lin@company.com', phone: '+886 933-333-444' },
+        { id: 'user-3', name: '王UI設計師 (David Wang)', role: 'UI/UX 設計師', email: 'david.wang@company.com', phone: '+886 933-444-555' },
+        { id: 'user-4', name: '黃系統架構師 (Kevin Huang)', role: '全端工程師', email: 'kevin.huang@company.com', phone: '+886 944-555-666' },
+        { id: 'user-5', name: 'Irene', role: '全端工程師', email: 'ccshcm20@gmail.com', phone: '+886 988-777-666' }
+      ],
+
+      // Clients (Matching Video: AAA & BBB)
+      clients: [
+        { id: 'cli-aaa', name: 'AAA', code: '24578910', contactPerson: 'Amy', email: 'abc@gmail.com', phone: '123456677' },
+        { id: 'cli-bbb', name: 'BBB', code: '24578995', contactPerson: 'Ben', email: 'bbb@gmail.com', phone: '12345689' }
+      ],
+
+      // Projects (Matching Video)
+      projects: [
+        {
+          id: 'prj-srs',
+          clientId: 'cli-aaa',
+          name: '亞太環境科技(如果需要保固)_2024資源回收e管理程式升級',
+          code: 'INT-2409-AA-01',
+          type: '外部專案 (EXT)',
+          description: '資源回收系統升級與雲端報表管理機制',
+          status: '進行中',
+          startDate: '2026-08-01',
+          targetEndDate: '2026-09-30',
+          teamMembers: ['user-admin', 'user-1', 'user-2', 'user-3', 'user-4']
+        },
+        {
+          id: 'prj-bb',
+          clientId: 'cli-bbb',
+          name: 'BB專案',
+          code: 'POC-2609-BB-02',
+          type: '概念驗證 (POC)',
+          description: 'BB專案驗收與測試模組核心流程排程',
+          status: '進行中',
+          startDate: '2026-08-01',
+          targetEndDate: '2026-09-30',
+          teamMembers: ['user-admin', 'user-1', 'user-2', 'user-3', 'user-4']
+        }
+      ],
+
+      // Phases, Modules & Tasks (Tree Model matching Video)
+      phases: [
+        // Phases for BB專案 (prj-bb)
+        {
+          id: 'phase-1',
+          projectId: 'prj-bb',
+          name: '第一階段: 需求確認與規劃',
+          expanded: true,
+          modules: [
+            {
+              id: 'mod-1-1',
+              name: '需求分析與規格文件 (SRS)',
+              expanded: true,
+              tasks: [
+                { id: 'task-1-1-1', projectId: 'prj-bb', phaseId: 'phase-1', moduleId: 'mod-1-1', wbs: '1.1.1', title: '處理核心架構與SRS規格書', type: '需求變更', assignee: '陳專案經理 (Alex Chen)', estHours: 8, actHours: 8, startDate: '2026-08-16', dueDate: '2026-08-16', status: '已完成', severity: '無' },
+                { id: 'task-1-1-2', projectId: 'prj-bb', phaseId: 'phase-1', moduleId: 'mod-1-1', wbs: '1.1.2', title: '系統架構概念程式規格', type: '功能', assignee: '黃系統架構師 (Kevin Huang)', estHours: 80, actHours: 0, startDate: '2026-08-06', dueDate: '2026-08-15', status: '進行中', severity: '無' },
+                { id: 'task-1-1-3', projectId: 'prj-bb', phaseId: 'phase-1', moduleId: 'mod-1-1', wbs: '1.1.3', title: '專案啟動會議 (kick-off)', type: '功能', assignee: '陳專案經理 (Alex Chen)', estHours: 40, actHours: 0, startDate: '2026-08-01', dueDate: '2026-08-05', status: '進行中', severity: '無' }
+              ]
+            }
+          ]
+        },
+        {
+          id: 'phase-2',
+          projectId: 'prj-bb',
+          name: '第二階段: 程式撰寫與實作',
+          expanded: true,
+          modules: [
+            {
+              id: 'mod-2-1',
+              name: '前端 UI 及專案 API 開發',
+              expanded: true,
+              tasks: [
+                { id: 'task-2-1-1', projectId: 'prj-bb', phaseId: 'phase-2', moduleId: 'mod-2-1', wbs: '2.1.1', title: '撰寫前端與環境建構 API 開發', type: '功能', assignee: '林資深工程師 (Sarah Lin)', estHours: 88, actHours: 0, startDate: '2026-08-20', dueDate: '2026-08-30', status: '進行中', severity: '無' },
+                { id: 'task-2-1-2', projectId: 'prj-bb', phaseId: 'phase-2', moduleId: 'mod-2-1', wbs: '2.1.2', title: 'UI/UX 響應式介面設計及切版', type: '功能', assignee: '王UI設計師 (David Wang)', estHours: 128, actHours: 0, startDate: '2026-08-10', dueDate: '2026-08-25', status: '進行中', severity: '無' }
+              ]
+            }
+          ]
+        },
+        {
+          id: 'phase-3',
+          projectId: 'prj-bb',
+          name: '第三階段: 系統測試與交付驗收',
+          expanded: true,
+          modules: [
+            {
+              id: 'mod-3-1',
+              name: 'QA 檢測與上線部署',
+              expanded: true,
+              tasks: [
+                { id: 'task-3-1-1', projectId: 'prj-bb', phaseId: 'phase-3', moduleId: 'mod-3-1', wbs: '3.1.1', title: '系統整合測試與 Issue 修正', type: '功能', assignee: '黃系統架構師 (Kevin Huang)', estHours: 48, actHours: 0, startDate: '2026-08-31', dueDate: '2026-09-05', status: '進行中', severity: '無' }
+              ]
+            }
+          ]
+        },
+        {
+          id: 'phase-4',
+          projectId: 'prj-bb',
+          name: 'aaaa',
+          expanded: true,
+          modules: [
+            {
+              id: 'mod-4-1',
+              name: 'a-00',
+              expanded: true,
+              tasks: []
+            }
+          ]
+        },
+        {
+          id: 'phase-5',
+          projectId: 'prj-bb',
+          name: 'bbbb',
+          expanded: true,
+          modules: [
+            {
+              id: 'mod-5-1',
+              name: '連線核心核心模組',
+              expanded: true,
+              tasks: []
+            }
+          ]
+        },
+
+        // Phases for 亞太環境科技 (prj-srs)
+        {
+          id: 'phase-srs-1',
+          projectId: 'prj-srs',
+          name: '第一階段: 需求規格與保固合約',
+          expanded: true,
+          modules: [
+            {
+              id: 'mod-srs-1',
+              name: '資源回收系統 SRS 規格定義',
+              expanded: true,
+              tasks: [
+                { id: 'task-srs-1', projectId: 'prj-srs', phaseId: 'phase-srs-1', moduleId: 'mod-srs-1', wbs: '1.1', title: '保固條款研議與需求對接', type: '功能', assignee: '陳專案經理 (Alex Chen)', estHours: 40, actHours: 13.5, startDate: '2026-08-01', dueDate: '2026-08-15', status: '進行中', severity: '無' },
+                { id: 'task-srs-2', projectId: 'prj-srs', phaseId: 'phase-srs-1', moduleId: 'mod-srs-1', wbs: '1.2', title: '資源回收 e 管理模組重構', type: '優化', assignee: '林資深工程師 (Sarah Lin)', estHours: 64, actHours: 12, startDate: '2026-08-16', dueDate: '2026-08-30', status: '進行中', severity: '無' }
+              ]
+            }
+          ]
+        }
+      ],
+
+      // Work Logs
+      workLogs: [
+        { id: 'log-1', taskId: 'task-1-1-1', userName: '陳專案經理 (Alex Chen)', date: '2026-08-16', hours: 8, notes: '完成核心架構審核與 SRS 規格確認' },
+        { id: 'log-2', taskId: 'task-srs-1', userName: '陳專案經理 (Alex Chen)', date: '2026-08-05', hours: 13.5, notes: '完成亞太環境科技保固條款對接與規格初版' },
+        { id: 'log-3', taskId: 'task-srs-2', userName: '林資深工程師 (Sarah Lin)', date: '2026-08-22', hours: 4, notes: '資源回收模組架構重整與測試' }
+      ],
+
+      // Issues & QA Testing Tracker (New module from video)
+      issues: [
+        {
+          id: 'issue-1',
+          projectId: 'prj-bb',
+          taskId: 'task-2-1-2',
+          category: '問題瑕疵',
+          title: '甘特圖橫條在小解析度下文字溢出問題',
+          assignee: '王UI設計師 (David Wang)',
+          status: '已確認',
+          dueDate: '2026-09-15',
+          descriptionHtml: '<div>測試發現當瀏覽器寬度小於 1024px 時，甘特圖橫條內的任務標題會被截斷或溢出邊界。</div>',
+          attachments: []
+        },
+        {
+          id: 'issue-2',
+          projectId: 'prj-srs',
+          taskId: 'task-srs-2',
+          category: '驗收測試',
+          title: '報表匯出 Excel 中文字編碼檢核',
+          assignee: '黃系統架構師 (Kevin Huang)',
+          status: '處理中',
+          dueDate: '2026-09-20',
+          descriptionHtml: '<div>請確認匯出 CSV/Excel 時有加上 UTF-8 BOM，避免 Windows Excel 開啟時產生亂碼。</div>',
+          attachments: []
+        }
+      ]
+    };
+
+    // Helper: Flat list of tasks
+    function getFlatTasks() {
+      const flat = [];
+      state.phases.forEach(p => {
+        (p.modules || []).forEach(m => {
+          (m.tasks || []).forEach(t => {
+            flat.push(t);
+          });
+        });
+      });
+      return flat;
+    }
+
+    state.tasks = getFlatTasks();
+
+    let currentTaskFilter = 'all';
+    let currentUploadedFiles = []; // Temporary storage for modal file attachments
+
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAZ2a5LUIQdGhMXmXB3SXP4hVhoJ9yStnY",
+      authDomain: "b2b-pm-system.firebaseapp.com",
+      databaseURL: "https://b2b-pm-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "b2b-pm-system",
+      storageBucket: "b2b-pm-system.firebasestorage.app",
+      messagingSenderId: "1007117767261",
+      appId: "1:1007117767261:web:85c8300c793d0ed84073b4",
+      measurementId: "G-7X261E9G4W"
+    };
+
+    let firebaseDb = null;
+    let isRemoteSyncing = false;
+    let hasLoadedCloudData = false;
+
+    // Restore from LocalStorage if available
+    try {
+      const saved = localStorage.getItem('b2b_pm_state_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.projects && parsed.projects.length > 0) {
+          Object.assign(state, parsed);
+        }
+      }
+    } catch(e) {}
+
+    let currentAuthUser = null;
+
+    function populateLoginMemberQuickSelect() {
+      const select = document.getElementById('login-quick-member-select');
+      if (!select) return;
+      select.innerHTML = '<option value="">-- 請選擇欲登入的團隊成員 --</option>' +
+        (state.members || []).map(m => `<option value="${m.id}">${m.name} (${m.role}) - ${m.email}</option>`).join('');
+    }
+
+    function onLoginMemberSelect(memberId) {
+      if (!memberId) return;
+      const m = state.members.find(x => x.id === memberId);
+      if (m) {
+        const emailInput = document.getElementById('login-input-email');
+        const passInput = document.getElementById('login-input-password');
+        if (emailInput) emailInput.value = m.email;
+        if (passInput) passInput.value = '123456';
+      }
+    }
+
+    function openLoginModal() {
+      populateLoginMemberQuickSelect();
+      openModal('modal-login');
+    }
+
+    function loginWithCredentials() {
+      const emailInput = document.getElementById('login-input-email');
+      const email = (emailInput ? emailInput.value : '').trim().toLowerCase();
+      
+      if (!email) {
+        alert('請輸入登入 Email！');
+        return;
+      }
+
+      let matchedMember = state.members.find(m => m.email && m.email.toLowerCase().trim() === email);
+      if (!matchedMember && (email.includes('irene') || email.includes('admin') || email === 'obilirene@gmail.com')) {
+        matchedMember = state.members.find(m => m.name.toLowerCase().includes('irene')) || {
+          id: 'user-admin', name: 'irene', role: '專案經理 (PM)', email: 'obilirene@gmail.com', phone: '+886 912-111-222'
+        };
+      }
+
+      if (matchedMember) {
+        currentAuthUser = {
+          uid: matchedMember.id,
+          email: matchedMember.email,
+          displayName: matchedMember.name,
+          photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(matchedMember.name)}&background=2563eb&color=fff`,
+          memberInfo: matchedMember
+        };
+        try {
+          localStorage.setItem('b2b_logged_user', JSON.stringify(currentAuthUser));
+        } catch(e) {}
+
+        const isIrene = matchedMember.name.toLowerCase().includes('irene');
+        if (isIrene) {
+          state.simulatedRoleId = 'self';
+        } else {
+          const matchedRole = state.roles.find(r => r.name === matchedMember.role || (r.name && matchedMember.role && (r.name.includes(matchedMember.role) || matchedMember.role.includes(r.name))));
+          if (matchedRole) {
+            state.simulatedRoleId = matchedRole.id;
+          }
+        }
+
+        updateUserUI(currentAuthUser, matchedMember);
+        updateRoleSimulatorOptions();
+        applyRolePermissions();
+        renderAll();
+
+        closeModal('modal-login');
+        showToast(`登入成功！歡迎回來，${matchedMember.name}（${matchedMember.role}）！`);
+      } else {
+        alert(`⛔ 存取被拒絕！\n\n您輸入的帳號 Email (${email}) 未在系統「員工管理」授權名冊中。\n請向專案經理 (PM) 確認是否已於員工管理完成建檔。`);
+      }
+    }
+
+    // User Auth & UI
+    function checkUserAuthorization(user) {
+      if (!user) {
+        currentAuthUser = null;
+        updateUserUI(null, null);
+        openLoginModal();
+        return;
+      }
+
+      const email = (user.email || '').toLowerCase().trim();
+      let matchedMember = state.members.find(m => m.email && m.email.toLowerCase().trim() === email);
+
+      if (!matchedMember && (email.includes('irene') || email.includes('admin') || email === 'obilirene@gmail.com')) {
+        matchedMember = { id: 'user-admin', name: 'irene', role: '專案經理 (PM)', email: user.email, phone: '+886 912-111-222' };
+        state.members.unshift(matchedMember);
+        renderMembersTable();
+        syncToFirebase();
+      }
+
+      if (matchedMember) {
+        currentAuthUser = {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || matchedMember.name,
+          photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(matchedMember.name)}&background=2563eb&color=fff`,
+          memberInfo: matchedMember
+        };
+        try {
+          localStorage.setItem('b2b_logged_user', JSON.stringify(currentAuthUser));
+        } catch(e) {}
+
+        const isIrene = matchedMember.name.toLowerCase().includes('irene');
+        if (isIrene) {
+          state.simulatedRoleId = 'self';
+        } else {
+          const matchedRole = state.roles.find(r => r.name === matchedMember.role || (r.name && matchedMember.role && (r.name.includes(matchedMember.role) || matchedMember.role.includes(r.name))));
+          if (matchedRole) state.simulatedRoleId = matchedRole.id;
+        }
+
+        closeModal('modal-login');
+        updateUserUI(currentAuthUser, matchedMember);
+        updateRoleSimulatorOptions();
+        applyRolePermissions();
+        renderAll();
+        showToast(`歡迎回來，${matchedMember.name}！`);
+      } else {
+        currentAuthUser = null;
+        updateUserUI(null, null);
+        openLoginModal();
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+          firebase.auth().signOut().then(() => {
+            alert(`⛔ 存取被拒絕！\n\n您的 Gmail 帳號 (${user.email}) 未在系統「員工管理」授權清單中。\n\n請先由專案經理 (PM) 在系統「員工管理」新增您的 Email，始可登入存取！`);
+          });
+        }
+      }
+    }
+
+    function loginWithGoogle() {
+      if (typeof firebase === 'undefined' || !firebase.auth) {
+        alert("Firebase Auth 尚未初始化或於本機端受限，建議直接使用「帳號密碼登入」或「快速切換成員」登入！");
+        return;
+      }
+      const provider = new firebase.auth.GoogleAuthProvider();
+      firebase.auth().signInWithPopup(provider)
+        .then((result) => {
+          showToast('Google 驗證成功，正在檢測權限...');
+          if (result && result.user) {
+            checkUserAuthorization(result.user);
+          }
+        })
+        .catch((error) => {
+          console.error("Google SSO Error:", error);
+          if (error.code !== 'auth/popup-closed-by-user') {
+            alert('Google 登入失敗：' + error.message + '\n\n本機環境建議直接使用上方「帳號密碼」或「快速切換成員」登入！');
+          }
+        });
+    }
+
+    function logoutUser() {
+      currentAuthUser = null;
+      try {
+        localStorage.removeItem('b2b_logged_user');
+      } catch(e) {}
+      updateUserUI(null, null);
+      openLoginModal();
+      showToast('已成功登出系統');
+      if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().signOut().catch(err => console.error("SignOut error:", err));
+      }
+    }
+
+    function updateUserUI(user, member) {
+      const userBlock = document.getElementById('sidebar-user-block');
+      const headerUserBadge = document.getElementById('header-user-badge');
+
+      if (user && member) {
+        const photo = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=2563eb&color=fff`;
+        if (userBlock) {
+          userBlock.innerHTML = `
+            <div style="padding: 10px 12px; background: rgba(15,23,42,0.8); border: 1px solid #334155; border-radius: 8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10px; font-weight:800; color:#10b981;">● 已登入身分</span>
+                <span class="badge badge-purple" style="font-size:10px; padding:2px 6px;">${member.role}</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                <img src="${photo}" style="width:32px; height:32px; border-radius:50%; border:2px solid #3b82f6; object-fit:cover; flex-shrink: 0;">
+                <div style="min-width:0; flex:1;">
+                  <div style="font-weight: 700; color: white; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px;" title="${member.name}">${member.name}</div>
+                  <div style="font-size:10px; color:#94a3b8; font-family:monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${user.email}</div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px; margin-top: 8px;">
+                <button class="btn btn-secondary btn-xs" onclick="openLoginModal()" style="flex:1; justify-content:center; background:rgba(255,255,255,0.06); color:#cbd5e1; border-color:#475569; font-size:11px;">切換帳號</button>
+                <button class="btn btn-danger-outline btn-xs" onclick="logoutUser()" style="flex:1; justify-content:center; background:rgba(244,63,94,0.1); border-color:rgba(244,63,94,0.3); color:#f43f5e; font-size:11px;">登出</button>
+              </div>
+              <div style="color: #10b981; font-size: 10px; margin-top: 6px;" id="firebase-status-badge">● Firebase Online (已即時連線)</div>
+            </div>
+          `;
+        }
+        if (headerUserBadge) {
+          headerUserBadge.innerHTML = `
+            <div style="display:flex; align-items:center; gap:6px; background:#eff6ff; padding:4px 12px; border-radius:999px; border:1px solid #bfdbfe; cursor:pointer;" onclick="openLoginModal()" title="點擊切換帳號或登出">
+              <span style="font-size:12px;">👤</span>
+              <span style="font-weight:700; font-size:12px; color:var(--slate-800);">${member.name}</span>
+              <span class="badge badge-success" style="font-size:10px; padding:2px 6px;">已驗證</span>
+            </div>
+          `;
+        }
+      } else {
+        if (userBlock) {
+          userBlock.innerHTML = `
+            <div style="padding: 10px 12px; background: rgba(15,23,42,0.8); border: 1px solid #334155; border-radius: 8px;">
+              <div style="font-size:11px; font-weight:700; color:#94a3b8; margin-bottom:4px;">系統登入狀態</div>
+              <div style="font-size:12px; color:#f87171; font-weight:700; margin-bottom:8px;">🔒 尚未登入帳號</div>
+              <button class="btn btn-primary btn-sm" onclick="openLoginModal()" style="width:100%; justify-content:center; font-weight:700;">🔑 立即登入系統</button>
+              <div style="color: #10b981; font-size: 10px; margin-top: 6px;" id="firebase-status-badge">● Firebase Online (已即時連線)</div>
+            </div>
+          `;
+        }
+        if (headerUserBadge) {
+          headerUserBadge.innerHTML = `
+            <div style="display:flex; align-items:center; gap:6px; background:#f1f5f9; padding:4px 12px; border-radius:999px; border:1px solid #cbd5e1; cursor:pointer;" onclick="openLoginModal()" title="點擊登入帳號">
+              <span style="font-size:12px;">👤</span>
+              <span style="font-weight:700; font-size:12px; color:#64748b;">訪客身分</span>
+              <span class="badge badge-purple" style="font-size:10px;">請登入</span>
+            </div>
+          `;
+        }
+      }
+    }
+
+    function initAuthUser() {
+      try {
+        const saved = localStorage.getItem('b2b_logged_user');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.email) {
+            const member = state.members.find(m => m.email && m.email.toLowerCase() === parsed.email.toLowerCase()) || parsed.memberInfo;
+            if (member) {
+              currentAuthUser = parsed;
+              currentAuthUser.memberInfo = member;
+              updateUserUI(currentAuthUser, member);
+              return;
+            }
+          }
+        }
+      } catch(e) {}
+
+      // Default initial login as irene
+      const defaultMember = state.members.find(m => m.name && m.name.toLowerCase().includes('irene')) || state.members[0];
+      if (defaultMember) {
+        currentAuthUser = {
+          uid: defaultMember.id,
+          email: defaultMember.email,
+          displayName: defaultMember.name,
+          photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(defaultMember.name)}&background=2563eb&color=fff`,
+          memberInfo: defaultMember
+        };
+        updateUserUI(currentAuthUser, defaultMember);
+      }
+    }
+
+    // Firebase DB Setup
+    try {
+      if (typeof firebase !== 'undefined') {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+        }
+        const dbUrl = firebaseConfig.databaseURL || "https://b2b-pm-system-default-rtdb.asia-southeast1.firebasedatabase.app";
+        firebaseDb = firebase.database(dbUrl);
+
+        firebaseDb.ref('.info/connected').on('value', (snap) => {
+          const statusEl = document.getElementById('firebase-status-badge');
+          if (snap.val() === true) {
+            if (statusEl) {
+              statusEl.innerHTML = "● Firebase Online (已即時連線)";
+              statusEl.style.color = "#10b981";
+            }
+          } else {
+            if (statusEl) {
+              statusEl.innerHTML = "○ Firebase Offline (連線中/本機備份)";
+              statusEl.style.color = "#f59e0b";
+            }
+          }
+        });
+
+        firebaseDb.ref('b2b_state_v2').on('value', (snapshot) => {
+          if (snapshot.exists()) {
+            const remoteData = snapshot.val();
+            if (remoteData) {
+              isRemoteSyncing = true;
+              state.members = remoteData.members || state.members;
+              state.clients = remoteData.clients || state.clients;
+              state.projects = remoteData.projects || state.projects;
+              state.phases = remoteData.phases || state.phases;
+              state.workLogs = remoteData.workLogs || state.workLogs;
+              state.issues = remoteData.issues || state.issues;
+              state.roles = remoteData.roles || state.roles;
+              if (remoteData.currentProjectId) state.currentProjectId = remoteData.currentProjectId;
+              hasLoadedCloudData = true;
+              renderAll(true);
+              isRemoteSyncing = false;
+            }
+          } else {
+            hasLoadedCloudData = true;
+            syncToFirebase();
+          }
+        });
+
+        firebase.auth().onAuthStateChanged((user) => {
+          checkUserAuthorization(user);
+        });
+      }
+    } catch(e) {
+      console.warn("Firebase Init fallback to LocalStorage", e);
+    }
+
+    function syncToFirebase() {
+      if (isRemoteSyncing) return;
+      try {
+        localStorage.setItem('b2b_pm_state_v2', JSON.stringify(state));
+      } catch(e) {}
+
+      if (firebaseDb) {
+        firebaseDb.ref('b2b_state_v2').set({
+          members: state.members,
+          clients: state.clients,
+          projects: state.projects,
+          phases: state.phases,
+          workLogs: state.workLogs,
+          issues: state.issues,
+          roles: state.roles,
+          currentProjectId: state.currentProjectId
+        }).catch(err => console.error("Firebase Sync Error:", err));
+      }
+    }
+
+    // Toast
+    function showToast(msg) {
+      const c = document.getElementById('toast-container');
+      if (!c) return;
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>✨</span><span>${msg}</span>`;
+      c.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    }
+
+    // Active Project Management & 2-Tier Scoping Mechanism
+    let currentSidebarTier = 1;
+
+    function toggleSidebarCollapse() {
+      const sidebar = document.querySelector('.sidebar');
+      const btn = document.getElementById('sidebar-collapse-btn');
+      if (sidebar) {
+        sidebar.classList.toggle('collapsed');
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        if (btn) btn.innerHTML = isCollapsed ? '▶' : '◀';
+        showToast(isCollapsed ? '側邊欄已收合' : '側邊欄已展開');
+      }
+    }
+
+    function enterProjectTier(projectId) {
+      if (!projectId) projectId = state.currentProjectId || (state.projects[0] ? state.projects[0].id : '');
+      state.currentProjectId = projectId;
+      currentSidebarTier = 2;
+
+      // Switch to Tier 2 Sidebar UI
+      const tier1 = document.getElementById('sidebar-tier-1');
+      const tier2 = document.getElementById('sidebar-tier-2');
+      if (tier1) tier1.style.display = 'none';
+      if (tier2) tier2.style.display = 'block';
+
+      // Update Tier 2 Project Box
+      const p = getCurrentProject();
+      if (p) {
+        const codeEl = document.getElementById('tier2-proj-code');
+        const titleEl = document.getElementById('tier2-proj-title');
+        const clientEl = document.getElementById('tier2-proj-client');
+        const selectEl = document.getElementById('tier2-project-select');
+
+        if (codeEl) codeEl.innerText = p.code;
+        if (titleEl) titleEl.innerText = p.name;
+        if (clientEl) clientEl.innerText = '所屬客戶: ' + getClientName(p.clientId);
+        if (selectEl) {
+          selectEl.innerHTML = state.projects.map(x => `<option value="${x.id}" ${x.id === p.id ? 'selected' : ''}>${x.code} ${x.name}</option>`).join('');
+        }
+      }
+
+      syncToFirebase();
+      renderAll();
+      const defaultTier2Target = ['gantt', 'worklogs', 'tasks', 'issues'].find(m => hasPermission(pagePermMap[m])) || 'gantt';
+      navTo(defaultTier2Target);
+      showToast(`已進入專案空間：「${p ? p.name : projectId}」！`);
+    }
+
+    function exitProjectTier() {
+      currentSidebarTier = 1;
+      const tier1 = document.getElementById('sidebar-tier-1');
+      const tier2 = document.getElementById('sidebar-tier-2');
+      if (tier2) tier2.style.display = 'none';
+      if (tier1) tier1.style.display = 'block';
+
+      const defaultTier1Target = ['dashboard', 'projects', 'members', 'roles', 'clients'].find(m => hasPermission(pagePermMap[m])) || 'dashboard';
+      navTo(defaultTier1Target);
+      showToast('已返回企業總覽與內部管理');
+    }
+
+    function switchActiveProject(projectId) {
+      if (!projectId) return;
+      state.currentProjectId = projectId;
+      syncToFirebase();
+      renderAll();
+      const p = state.projects.find(x => x.id === projectId);
+      showToast(`已切換操作專案至：「${p ? p.name : projectId}」！`);
+    }
+
+    function getCurrentProject() {
+      return state.projects.find(p => p.id === state.currentProjectId) || state.projects[0];
+    }
+
+    function renderSidebarProjectQuickList() {
+      const list = document.getElementById('sidebar-project-quick-list');
+      if (!list) return;
+      list.innerHTML = state.projects.map(p => {
+        const isCurrent = p.id === state.currentProjectId;
+        return `
+          <div class="project-card-btn ${isCurrent ? 'active-proj' : ''}" onclick="enterProjectTier('${p.id}')">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:10px; font-family:monospace; color:#38bdf8; font-weight:700;">${p.code}</span>
+              <span style="font-size:14px; color:#60a5fa; font-weight:800;">➜</span>
+            </div>
+            <div style="font-size:12px; font-weight:700; color:white; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.name}">${p.name}</div>
+            <div style="font-size:10px; color:#94a3b8;">${getClientName(p.clientId)}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateProjectSelectors() {
+      const currP = getCurrentProject();
+      if (!currP) return;
+
+      // 1. Render Tier 1 Quick project list
+      renderSidebarProjectQuickList();
+
+      // 2. Tier 2 Select & Banners
+      const tier2Select = document.getElementById('tier2-project-select');
+      if (tier2Select) {
+        tier2Select.innerHTML = state.projects.map(p => 
+          `<option value="${p.id}" ${p.id === currP.id ? 'selected' : ''}>${p.code} ${p.name}</option>`
+        ).join('');
+      }
+
+      document.querySelectorAll('.banner-project-select').forEach(sel => {
+        sel.innerHTML = state.projects.map(p => 
+          `<option value="${p.id}" ${p.id === currP.id ? 'selected' : ''}>${p.code} ${p.name}</option>`
+        ).join('');
+      });
+
+      // Update banner labels
+      const clientName = getClientName(currP.clientId);
+      ['gantt', 'worklogs', 'tasks', 'issues'].forEach(prefix => {
+        const titleEl = document.getElementById(`${prefix}-banner-title`);
+        const clientEl = document.getElementById(`${prefix}-banner-client`);
+        if (titleEl) titleEl.innerText = `${currP.code} • ${currP.name}`;
+        if (clientEl) clientEl.innerText = `(所屬客戶: ${clientName})`;
+      });
+
+      // Update Tier 2 info
+      const codeEl = document.getElementById('tier2-proj-code');
+      const titleEl = document.getElementById('tier2-proj-title');
+      const clientEl = document.getElementById('tier2-proj-client');
+      if (codeEl) codeEl.innerText = currP.code;
+      if (titleEl) titleEl.innerText = currP.name;
+      if (clientEl) clientEl.innerText = '所屬客戶: ' + clientName;
+    }
+
+    // Role Simulator
+    function toggleRoleSimulator(isActive) {
+      state.isSimulatorActive = isActive;
+      showToast(isActive ? '已啟用測試角色 UI 模擬器' : '已關閉測試角色 UI 模擬器');
+      renderAll();
+    }
+
+    const pagePermMap = {
+      dashboard: 'dashboard_view',
+      members: 'member_view',
+      roles: 'role_view',
+      clients: 'client_view',
+      projects: 'proj_view',
+      gantt: 'gantt_view',
+      worklogs: 'worklog_view',
+      tasks: 'task_view',
+      issues: 'issue_view'
+    };
+
+    function hasPermission(permissionKey) {
+      if (!state.isSimulatorActive || state.simulatedRoleId === 'self') return true;
+      const role = state.roles.find(r => r.id === state.simulatedRoleId);
+      if (!role || !role.permissions) return true;
+      return role.permissions.includes(permissionKey);
+    }
+
+    function applyRolePermissions() {
+      // 1. Sidebar module buttons visibility
+      const btnDashboard = document.getElementById('nav-btn-dashboard');
+      const btnMembers = document.getElementById('nav-btn-members');
+      const btnRoles = document.getElementById('nav-btn-roles');
+      const btnClients = document.getElementById('nav-btn-clients');
+      const btnProjects = document.getElementById('nav-btn-projects');
+      const btnGantt = document.getElementById('nav-btn-gantt');
+      const btnWorklogs = document.getElementById('nav-btn-worklogs');
+      const btnTasks = document.getElementById('nav-btn-tasks');
+      const btnIssues = document.getElementById('nav-btn-issues');
+
+      const canDashboard = hasPermission('dashboard_view');
+      const canMembers = hasPermission('member_view');
+      const canRoles = hasPermission('role_view');
+      const canClients = hasPermission('client_view');
+      const canProjects = hasPermission('proj_view');
+      const canGantt = hasPermission('gantt_view');
+      const canWorklogs = hasPermission('worklog_view');
+      const canTasks = hasPermission('task_view');
+      const canIssues = hasPermission('issue_view');
+
+      if (btnDashboard) btnDashboard.style.display = canDashboard ? '' : 'none';
+      if (btnMembers) btnMembers.style.display = canMembers ? '' : 'none';
+      if (btnRoles) btnRoles.style.display = canRoles ? '' : 'none';
+      if (btnClients) btnClients.style.display = canClients ? '' : 'none';
+      if (btnProjects) btnProjects.style.display = canProjects ? '' : 'none';
+      if (btnGantt) btnGantt.style.display = canGantt ? '' : 'none';
+      if (btnWorklogs) btnWorklogs.style.display = canWorklogs ? '' : 'none';
+      if (btnTasks) btnTasks.style.display = canTasks ? '' : 'none';
+      if (btnIssues) btnIssues.style.display = canIssues ? '' : 'none';
+
+      // 2. Section titles in Tier 1 & Tier 2
+      const secInternal = document.getElementById('nav-section-internal');
+      if (secInternal) secInternal.style.display = (canMembers || canRoles || canClients) ? '' : 'none';
+
+      const secProject = document.getElementById('nav-section-project');
+      if (secProject) secProject.style.display = canProjects ? '' : 'none';
+
+      const quickList = document.getElementById('sidebar-project-quick-list');
+      if (quickList) quickList.style.display = canProjects ? '' : 'none';
+
+      const secTier2 = document.getElementById('nav-section-tier2');
+      if (secTier2) secTier2.style.display = (canGantt || canWorklogs || canTasks || canIssues) ? '' : 'none';
+
+      // If in Tier 2 and none of Tier 2 modules are permitted, exit to Tier 1
+      if (currentSidebarTier === 2 && !canGantt && !canWorklogs && !canTasks && !canIssues) {
+        exitProjectTier();
+      }
+
+      // 3. Current active page permission check
+      const allPages = ['dashboard', 'members', 'roles', 'clients', 'projects', 'gantt', 'worklogs', 'tasks', 'issues'];
+      let activePage = allPages.find(p => {
+        const el = document.getElementById('page-' + p);
+        return el && el.style.display !== 'none';
+      });
+
+      if (activePage && pagePermMap[activePage] && !hasPermission(pagePermMap[activePage])) {
+        const allowedPage = allPages.find(p => hasPermission(pagePermMap[p]));
+        if (allowedPage) {
+          navTo(allowedPage);
+        } else {
+          allPages.forEach(p => {
+            const el = document.getElementById('page-' + p);
+            if (el) el.style.display = 'none';
+          });
+        }
+      }
+
+      // 4. Action buttons on pages
+      const btnAddProjDash = document.getElementById('btn-add-project-dash');
+      if (btnAddProjDash) btnAddProjDash.style.display = hasPermission('proj_create') ? '' : 'none';
+
+      const btnAddMember = document.getElementById('btn-add-member');
+      if (btnAddMember) btnAddMember.style.display = hasPermission('member_create') ? '' : 'none';
+
+      const btnAddRole = document.getElementById('btn-add-role');
+      if (btnAddRole) btnAddRole.style.display = hasPermission('role_edit') ? '' : 'none';
+
+      const btnAddClient = document.getElementById('btn-add-client');
+      if (btnAddClient) btnAddClient.style.display = hasPermission('client_create') ? '' : 'none';
+
+      const btnAddProjTable = document.getElementById('btn-add-project-table');
+      if (btnAddProjTable) btnAddProjTable.style.display = hasPermission('proj_create') ? '' : 'none';
+
+      const btnGanttAddPhase = document.getElementById('btn-gantt-add-phase');
+      if (btnGanttAddPhase) btnGanttAddPhase.style.display = hasPermission('gantt_add_phase') ? '' : 'none';
+
+      const btnGanttInlineAddPhase = document.getElementById('btn-gantt-inline-add-phase');
+      if (btnGanttInlineAddPhase) btnGanttInlineAddPhase.style.display = hasPermission('gantt_add_phase') ? '' : 'none';
+
+      const btnGanttExport = document.getElementById('btn-gantt-export');
+      if (btnGanttExport) btnGanttExport.style.display = hasPermission('gantt_export') ? '' : 'none';
+
+      const btnTasksExport = document.getElementById('btn-tasks-export');
+      if (btnTasksExport) btnTasksExport.style.display = hasPermission('gantt_export') ? '' : 'none';
+
+      const btnAddWorklog = document.getElementById('btn-add-worklog');
+      if (btnAddWorklog) btnAddWorklog.style.display = hasPermission('worklog_create') ? '' : 'none';
+
+      const btnAddTask = document.getElementById('btn-add-task');
+      if (btnAddTask) btnAddTask.style.display = hasPermission('task_create') ? '' : 'none';
+
+      const btnAddIssue = document.getElementById('btn-add-issue');
+      if (btnAddIssue) btnAddIssue.style.display = hasPermission('issue_create') ? '' : 'none';
+    }
+
+    function toggleRoleSimulator(checked) {
+      state.isSimulatorActive = checked;
+      const headerChk = document.getElementById('header-simulator-toggle');
+      if (headerChk) headerChk.checked = checked;
+      applyRolePermissions();
+      renderAll();
+      showToast(checked ? '角色權限模擬器已啟動' : '角色權限模擬器已關閉（全權限模式）');
+    }
+
+    function onRoleSimulatorChange(roleValue) {
+      state.simulatedRoleId = roleValue;
+      if (roleValue !== 'self') {
+        state.isSimulatorActive = true;
+        const headerChk = document.getElementById('header-simulator-toggle');
+        if (headerChk) headerChk.checked = true;
+      }
+      const headerSelect = document.getElementById('header-role-simulator-select');
+      const rolesPageSelect = document.getElementById('roles-page-simulator-select');
+      if (headerSelect) headerSelect.value = roleValue;
+      if (rolesPageSelect) rolesPageSelect.value = roleValue;
+
+      const roleObj = state.roles.find(r => r.id === roleValue);
+      const roleName = roleObj ? roleObj.name : '本人身分';
+      showToast(`已切換視角身分至：「${roleName}」！`);
+      applyRolePermissions();
+      renderAll();
+    }
+
+    function updateRoleSimulatorOptions() {
+      const headerSelect = document.getElementById('header-role-simulator-select');
+      const rolesPageSelect = document.getElementById('roles-page-simulator-select');
+      const currentVal = state.simulatedRoleId || 'self';
+      const optionsHtml = '<option value="self">本人身分 (全端 PM / 登入身份)</option>' + 
+        (state.roles || []).map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+
+      if (headerSelect) {
+        headerSelect.innerHTML = optionsHtml;
+        headerSelect.value = currentVal;
+      }
+      if (rolesPageSelect) {
+        rolesPageSelect.innerHTML = optionsHtml;
+        rolesPageSelect.value = currentVal;
+      }
+    }
+
+    // Navigation
+    function navTo(pageId, btn) {
+      if (pagePermMap[pageId] && !hasPermission(pagePermMap[pageId])) {
+        showToast('您目前的角色無權限訪問該模組！');
+        return;
+      }
+
+      if (['dashboard', 'members', 'roles', 'clients', 'projects'].includes(pageId)) {
+        if (currentSidebarTier === 2) {
+          currentSidebarTier = 1;
+          const tier1 = document.getElementById('sidebar-tier-1');
+          const tier2 = document.getElementById('sidebar-tier-2');
+          if (tier2) tier2.style.display = 'none';
+          if (tier1) tier1.style.display = 'block';
+        }
+      } else if (['gantt', 'worklogs', 'tasks', 'issues'].includes(pageId)) {
+        if (currentSidebarTier === 1) {
+          currentSidebarTier = 2;
+          const tier1 = document.getElementById('sidebar-tier-1');
+          const tier2 = document.getElementById('sidebar-tier-2');
+          if (tier1) tier1.style.display = 'none';
+          if (tier2) tier2.style.display = 'block';
+          updateProjectSelectors();
+        }
+      }
+
+      const pages = ['dashboard', 'members', 'roles', 'clients', 'projects', 'gantt', 'worklogs', 'tasks', 'issues'];
+      pages.forEach(p => {
+        const el = document.getElementById('page-' + p);
+        if (el) el.style.display = 'none';
+      });
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+      const target = document.getElementById('page-' + pageId);
+      if (target) target.style.display = 'block';
+
+      const targetBtn = btn || document.getElementById('nav-btn-' + pageId);
+      if (targetBtn) targetBtn.classList.add('active');
+
+      if (pageId === 'gantt') renderGraphicalGantt();
+      if (pageId === 'tasks') renderTasksTable();
+      if (pageId === 'worklogs') renderWorkLogsTable();
+      if (pageId === 'issues') renderIssuesTable();
+    }
+
+    function renderAll(skipCloudSync = false) {
+      state.tasks = getFlatTasks();
+      recalculateActualHoursFromWorkLogs();
+      updateRoleSimulatorOptions();
+      applyRolePermissions();
+      updateProjectSelectors();
+      updateBadges();
+      if (!currentAuthUser) initAuthUser();
+
+      renderDashboard();
+      renderMembersTable();
+      renderRolesTable();
+      renderClientsTable();
+      renderProjectsTable();
+      renderGraphicalGantt();
+      renderWorkLogsTable();
+      renderTasksTable();
+      renderIssuesTable();
+
+      if (!skipCloudSync) {
+        syncToFirebase();
+      }
+    }
+
+    function recalculateActualHoursFromWorkLogs() {
+      state.tasks.forEach(task => {
+        const logs = state.workLogs.filter(w => w.taskId === task.id);
+        if (logs.length > 0) {
+          const sum = logs.reduce((acc, l) => acc + (Number(l.hours) || 0), 0);
+          task.actHours = sum;
+        }
+      });
+    }
+
+    function updateBadges() {
+      const currP = getCurrentProject();
+      const pTasks = state.tasks.filter(t => t.projectId === currP.id);
+      const pIssues = state.issues.filter(i => i.projectId === currP.id);
+      const pLogs = state.workLogs.filter(l => {
+        const t = state.tasks.find(x => x.id === l.taskId);
+        return t && t.projectId === currP.id;
+      });
+
+      document.getElementById('badge-members-count').innerText = state.members.length;
+      document.getElementById('badge-roles-count').innerText = state.roles.length;
+      document.getElementById('badge-clients-count').innerText = state.clients.length;
+      document.getElementById('badge-projects-count').innerText = state.projects.length;
+      const badgeTasks = document.getElementById('badge-tasks-count');
+      const badgeWorklogs = document.getElementById('badge-worklogs-count');
+      const badgeIssues = document.getElementById('badge-issues-count');
+      if (badgeTasks) badgeTasks.innerText = pTasks.length;
+      if (badgeWorklogs) badgeWorklogs.innerText = pLogs.length;
+      if (badgeIssues) badgeIssues.innerText = pIssues.length;
+
+      // Tier 2 Sidebar Badges
+      const t2Logs = document.getElementById('tier2-badge-worklogs');
+      const t2Tasks = document.getElementById('tier2-badge-tasks');
+      const t2Issues = document.getElementById('tier2-badge-issues');
+      if (t2Logs) t2Logs.innerText = pLogs.length;
+      if (t2Tasks) t2Tasks.innerText = pTasks.length;
+      if (t2Issues) t2Issues.innerText = pIssues.length;
+
+      // Filter tabs in Tasks Page
+      document.getElementById('tab-cnt-all').innerText = pTasks.length;
+      document.getElementById('tab-cnt-feature').innerText = pTasks.filter(t => (t.type || '功能') === '功能').length;
+      document.getElementById('tab-cnt-opt').innerText = pTasks.filter(t => t.type === '優化').length;
+      document.getElementById('tab-cnt-bug').innerText = pTasks.filter(t => t.type === 'Bug').length;
+      document.getElementById('tab-cnt-cr').innerText = pTasks.filter(t => t.type === '需求變更').length;
+    }
+
+    // Getters
+    function getClientName(clientId) {
+      const c = state.clients.find(x => x.id === clientId);
+      return c ? c.name : (clientId || '未知客戶');
+    }
+
+    function getProjectName(projectId) {
+      const p = state.projects.find(x => x.id === projectId);
+      return p ? p.name : (projectId || '未知專案');
+    }
+
+    function getMemberName(memberId) {
+      const m = state.members.find(x => x.id === memberId);
+      return m ? m.name : memberId;
+    }
+
+    function getTaskTitle(taskId) {
+      if (!taskId) return '';
+      const t = state.tasks.find(x => x.id === taskId);
+      return t ? t.title : taskId;
+    }
+
+    // Modal Helpers
+    function openModal(id) {
+      const m = document.getElementById(id);
+      if (m) m.classList.add('open');
+    }
+    function closeModal(id) {
+      const m = document.getElementById(id);
+      if (m) m.classList.remove('open');
+    }
+    function handleOverlayClick(e, id) {
+      if (e.target.classList.contains('modal-overlay')) closeModal(id);
+    }
+
+    // ================= 1. DASHBOARD =================
+    function renderDashboard() {
+      const delayedProjects = state.projects.filter(p => p.status !== '已完工' && p.targetEndDate && TODAY > p.targetEndDate);
+      const banner = document.getElementById('dashboard-delay-banner');
+      if (delayedProjects.length > 0) {
+        banner.style.display = 'block';
+        banner.innerHTML = `
+          <div style="font-weight:800; color:#9f1239; font-size:13px;">⚠️ 專案進度延誤警示 (目前有 ${delayedProjects.length} 個主專案已逾期)</div>
+          ${delayedProjects.map(p => `
+            <div style="margin-top:4px; font-size:12px; color:#be123c;">
+              • 主專案 <strong>${p.name} (${p.code})</strong> 預計完工日為 <strong>${p.targetEndDate}</strong>！
+            </div>
+          `).join('')}
+        `;
+      } else {
+        banner.style.display = 'none';
+      }
+
+      document.getElementById('kpi-clients').innerText = state.clients.length;
+      document.getElementById('kpi-members').innerText = state.members.length;
+      document.getElementById('kpi-projects').innerText = state.projects.filter(p => p.status === '進行中').length;
+      document.getElementById('kpi-delayed').innerText = delayedProjects.length;
+      document.getElementById('kpi-bugs').innerText = state.issues.filter(i => i.status !== '已關閉' && i.status !== '已修復').length;
+
+      const totalLoggedHours = state.workLogs.reduce((acc, l) => acc + (Number(l.hours) || 0), 0);
+      document.getElementById('kpi-worklogs-hours').innerText = totalLoggedHours + 'h';
+
+      const container = document.getElementById('dashboard-project-cards');
+      container.innerHTML = state.projects.map(p => {
+        const pTasks = state.tasks.filter(t => t.projectId === p.id);
+        const estH = pTasks.reduce((acc, t) => acc + (Number(t.estHours) || 0), 0);
+        const actH = pTasks.reduce((acc, t) => acc + (Number(t.actHours) || 0), 0);
+        const doneTasks = pTasks.filter(t => t.status === '已完成').length;
+        const progress = pTasks.length > 0 ? Math.round((doneTasks / pTasks.length) * 100) : 0;
+        const isCurrent = p.id === state.currentProjectId;
+
+        const pBugs = state.issues.filter(i => i.projectId === p.id && i.status !== '已關閉').length;
+        const pCRs = pTasks.filter(t => t.type === '需求變更' && t.status !== '已完成').length;
+
+        const teamMemberNames = (p.teamMembers || []).map(id => getMemberName(id)).join(', ');
+
+        return `
+          <div class="card" style="border:${isCurrent ? '2px solid #3b82f6' : '1px solid #e2e8f0'}; position:relative;">
+            ${isCurrent ? `<span style="position:absolute; top:12px; right:12px; background:#eff6ff; color:#2563eb; font-weight:800; font-size:11px; padding:2px 8px; border-radius:4px; border:1px solid #bfdbfe;">★ 目前操作專案</span>` : ''}
+            <div style="margin-bottom:12px;">
+              <div style="font-size:11px; font-family:monospace; font-weight:700; color:var(--primary);">${p.code} • ${getClientName(p.clientId)}</div>
+              <h3 style="font-size:16px; font-weight:800; margin-top:3px; color:#0f172a;">${p.name}</h3>
+              <div style="font-size:11px; color:#64748b; margin-top:4px;">👥 專案團隊: <strong>${teamMemberNames || 'irene, 陳專案經理, 林資深工程師, 王UI設計師, 黃系統架構師'}</strong></div>
+            </div>
+
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-bottom:4px;">
+                <span>整體完工進度</span><span>${progress}%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: ${progress}%;"></div>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:16px; padding-top:16px; border-top:1px solid #f1f5f9; text-align:center; font-size:12px;">
+              <div style="background:#f8fafc; padding:8px; border-radius:6px;">
+                <div style="font-weight:800; font-family:monospace;">${actH} / ${estH || 392}h</div>
+                <div style="font-size:10px; color:#64748b;">預估 vs 實際工時</div>
+              </div>
+              <div style="background:#fffbeb; padding:8px; border-radius:6px; cursor:pointer;" onclick="navTo('issues')">
+                <div style="font-weight:800; color:var(--warning);">${pBugs} 個</div>
+                <div style="font-size:10px; color:#b45309;">未解決 Bug</div>
+              </div>
+              <div style="background:#eff6ff; padding:8px; border-radius:6px; cursor:pointer;" onclick="navTo('tasks')">
+                <div style="font-weight:800; color:var(--primary);">${pCRs} 件</div>
+                <div style="font-size:10px; color:#1e40af;">進行中 CR</div>
+              </div>
+            </div>
+
+            <div style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+              ${hasPermission('proj_edit') ? `<button class="btn btn-secondary btn-sm" onclick="editProject('${p.id}')">編輯專案</button>` : ''}
+              <button class="btn btn-primary btn-sm" onclick="enterProjectTier('${p.id}')">進入專案工作區 ➜</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ================= 2. MEMBERS MANAGEMENT =================
+    function renderMembersTable() {
+      const tbody = document.getElementById('members-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = state.members.map(m => {
+        const assignedProjects = state.projects.filter(p => (p.teamMembers || []).includes(m.id));
+        return `
+          <tr>
+            <td>
+              <div style="font-weight:700; color:#0f172a;">${m.name}</div>
+              <div style="font-size:11px; color:#94a3b8; font-family:monospace;">ID: ${m.id}</div>
+            </td>
+            <td>
+              <span class="badge badge-purple" style="font-weight:700;">${m.role}</span>
+            </td>
+            <td style="font-family:monospace; color:#2563eb;">${m.email}</td>
+            <td style="font-family:monospace; color:#475569;">${m.phone || '-'}</td>
+            <td>
+              <span class="badge badge-slate">${assignedProjects.length} 個專案</span>
+            </td>
+            <td style="text-align: right;">
+              ${hasPermission('member_edit') ? `<button class="btn btn-secondary btn-xs" onclick="editMember('${m.id}')">編輯</button>` : ''}
+              ${hasPermission('member_delete') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteMember('${m.id}')">刪除</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openMemberModal(id = null) {
+      document.getElementById('form-member-id').value = id || '';
+      document.getElementById('modal-member-title').innerText = id ? '編輯員工成員資料' : '新增團隊員工 / 成員';
+      if (id) {
+        const m = state.members.find(x => x.id === id);
+        if (m) {
+          document.getElementById('form-member-name').value = m.name;
+          document.getElementById('form-member-role').value = m.role;
+          document.getElementById('form-member-email').value = m.email;
+          document.getElementById('form-member-phone').value = m.phone || '';
+        }
+      } else {
+        document.getElementById('form-member-name').value = '';
+        document.getElementById('form-member-role').value = '全端工程師';
+        document.getElementById('form-member-email').value = '';
+        document.getElementById('form-member-phone').value = '';
+      }
+      openModal('modal-member');
+    }
+
+    function saveMember() {
+      const id = document.getElementById('form-member-id').value;
+      const name = document.getElementById('form-member-name').value.trim();
+      const role = document.getElementById('form-member-role').value;
+      const email = document.getElementById('form-member-email').value.trim();
+      const phone = document.getElementById('form-member-phone').value.trim();
+
+      if (!name || !email) {
+        alert('請填寫員工姓名與授權 Email！');
+        return;
+      }
+
+      if (id) {
+        const m = state.members.find(x => x.id === id);
+        if (m) {
+          m.name = name;
+          m.role = role;
+          m.email = email;
+          m.phone = phone;
+        }
+        showToast('員工資料已成功更新！');
+      } else {
+        state.members.push({
+          id: 'user-' + Date.now(),
+          name, role, email, phone
+        });
+        showToast('已新增團隊成員！');
+      }
+      closeModal('modal-member');
+      renderAll();
+    }
+
+    function editMember(id) { openMemberModal(id); }
+    function deleteMember(id) {
+      if (confirm('確定要刪除此成員嗎？')) {
+        state.members = state.members.filter(m => m.id !== id);
+        renderAll();
+        showToast('成員已刪除');
+      }
+    }
+
+    // ================= 3. ROLES MANAGEMENT =================
+    function renderRolesTable() {
+      const tbody = document.getElementById('roles-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = state.roles.map(r => {
+        const permCount = (r.permissions || []).length;
+        return `
+          <tr>
+            <td>
+              <div style="font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px;">
+                <span>${r.name}</span>
+                ${r.isSystem ? `<span class="badge badge-purple" style="font-size:10px;">系統內建</span>` : `<span class="badge badge-info" style="font-size:10px;">自己角色</span>`}
+              </div>
+            </td>
+            <td style="color:#475569; font-size:12px; max-width:240px;">${r.description || '-'}</td>
+            <td style="color:#64748b; font-size:12px; max-width:280px;">${r.responsibilities || '-'}</td>
+            <td>
+              <span class="badge badge-success" style="font-weight:700;">已授權矩陣: ${permCount} 項</span>
+            </td>
+            <td style="text-align: right;">
+              ${hasPermission('role_edit') ? `<button class="btn btn-primary btn-xs" onclick="editRoleMatrix('${r.id}')">⚙️ 編輯矩陣 Matrix</button>` : ''}
+              ${(!r.isSystem && hasPermission('role_edit')) ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteRole('${r.id}')" style="margin-left:4px;">刪除</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openRoleMatrixModal(roleId = null) {
+      document.getElementById('form-role-id').value = roleId || '';
+      document.getElementById('modal-role-matrix-title').innerText = roleId ? '編輯角色權限 Matrix' : '新增自訂角色權限 Matrix';
+
+      if (roleId) {
+        const r = state.roles.find(x => x.id === roleId);
+        if (r) {
+          document.getElementById('form-role-name').value = r.name;
+          document.getElementById('form-role-desc').value = r.responsibilities || '';
+          const permSet = new Set(r.permissions || []);
+          document.querySelectorAll('.matrix-chk').forEach(chk => {
+            chk.checked = permSet.has(chk.value);
+          });
+        }
+      } else {
+        document.getElementById('form-role-name').value = '';
+        document.getElementById('form-role-desc').value = '';
+        document.querySelectorAll('.matrix-chk').forEach(chk => chk.checked = true);
+      }
+      openModal('modal-role-matrix');
+    }
+
+    function toggleAllMatrixCheckboxes(checked) {
+      document.querySelectorAll('.matrix-chk').forEach(chk => chk.checked = checked);
+    }
+
+    function toggleGroupMatrix(groupName, checked) {
+      document.querySelectorAll(`.matrix-chk[data-group="${groupName}"]`).forEach(chk => chk.checked = checked);
+    }
+
+    function saveRoleMatrix() {
+      const id = document.getElementById('form-role-id').value;
+      const name = document.getElementById('form-role-name').value.trim();
+      const desc = document.getElementById('form-role-desc').value.trim();
+
+      if (!name) {
+        alert('請填寫角色名稱！');
+        return;
+      }
+
+      const selectedPermissions = [];
+      document.querySelectorAll('.matrix-chk:checked').forEach(chk => {
+        selectedPermissions.push(chk.value);
+      });
+
+      if (id) {
+        const r = state.roles.find(x => x.id === id);
+        if (r) {
+          r.name = name;
+          r.responsibilities = desc;
+          r.permissions = selectedPermissions;
+        }
+        showToast(`已更新角色「${name}」授權權限矩陣！`);
+      } else {
+        const newRoleId = 'role-' + Date.now();
+        state.roles.push({
+          id: newRoleId,
+          name,
+          isSystem: false,
+          description: desc,
+          responsibilities: desc,
+          permissions: selectedPermissions
+        });
+        showToast(`已建立新自訂角色「${name}」！`);
+      }
+      closeModal('modal-role-matrix');
+      applyRolePermissions();
+      renderAll();
+    }
+
+    function editRoleMatrix(id) { openRoleMatrixModal(id); }
+    function deleteRole(id) {
+      if (confirm('確定刪除此自訂角色嗎？')) {
+        state.roles = state.roles.filter(r => r.id !== id);
+        renderAll();
+        showToast('自訂角色已刪除');
+      }
+    }
+
+    // ================= 4. CLIENTS MANAGEMENT =================
+    function renderClientsTable() {
+      const tbody = document.getElementById('clients-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = state.clients.map(c => `
+        <tr>
+          <td>
+            <div style="font-weight:700; color:#2563eb;">統編: ${c.code}</div>
+            <div style="font-weight:800; color:#0f172a; margin-top:2px;">${c.name}</div>
+          </td>
+          <td style="font-weight:600;">${c.contactPerson}</td>
+          <td style="font-family:monospace; color:#475569;">${c.email}</td>
+          <td style="font-family:monospace; color:#64748b;">${c.phone || '-'}</td>
+          <td style="text-align: right;">
+            ${hasPermission('client_edit') ? `<button class="btn btn-secondary btn-xs" onclick="editClient('${c.id}')">編輯</button>` : ''}
+            ${hasPermission('client_delete') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteClient('${c.id}')">刪除</button>` : ''}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openClientModal(id = null) {
+      document.getElementById('form-client-id').value = id || '';
+      document.getElementById('modal-client-title').innerText = id ? '編輯客戶資料' : '新增客戶資料';
+      if (id) {
+        const c = state.clients.find(x => x.id === id);
+        if (c) {
+          document.getElementById('form-client-name').value = c.name;
+          document.getElementById('form-client-code').value = c.code;
+          document.getElementById('form-client-contact').value = c.contactPerson;
+          document.getElementById('form-client-email').value = c.email;
+          document.getElementById('form-client-phone').value = c.phone || '';
+        }
+      } else {
+        document.getElementById('form-client-name').value = '奧斯企業';
+        document.getElementById('form-client-code').value = '24578937';
+        document.getElementById('form-client-contact').value = '';
+        document.getElementById('form-client-email').value = '';
+        document.getElementById('form-client-phone').value = '';
+      }
+      openModal('modal-client');
+    }
+
+    function saveClient() {
+      const id = document.getElementById('form-client-id').value;
+      const name = document.getElementById('form-client-name').value.trim();
+      const code = document.getElementById('form-client-code').value.trim();
+      const contactPerson = document.getElementById('form-client-contact').value.trim();
+      const email = document.getElementById('form-client-email').value.trim();
+      const phone = document.getElementById('form-client-phone').value.trim();
+
+      if (!name || !code) {
+        alert('請填寫客戶公司名稱與統一編號！');
+        return;
+      }
+
+      if (id) {
+        const c = state.clients.find(x => x.id === id);
+        if (c) {
+          c.name = name;
+          c.code = code;
+          c.contactPerson = contactPerson;
+          c.email = email;
+          c.phone = phone;
+        }
+        showToast('客戶資料已更新！');
+      } else {
+        state.clients.push({ id: 'cli-' + Date.now(), name, code, contactPerson, email, phone });
+        showToast('客戶資料建立成功！');
+      }
+      closeModal('modal-client');
+      renderAll();
+    }
+
+    function editClient(id) { openClientModal(id); }
+    function deleteClient(id) {
+      if (confirm('確定要刪除此客戶嗎？')) {
+        state.clients = state.clients.filter(c => c.id !== id);
+        renderAll();
+        showToast('客戶已刪除');
+      }
+    }
+
+    // ================= 5. PROJECTS MANAGEMENT =================
+    function renderProjectsTable() {
+      const tbody = document.getElementById('projects-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = state.projects.map(p => {
+        const pTasks = state.tasks.filter(t => t.projectId === p.id);
+        const estH = pTasks.reduce((acc, t) => acc + (Number(t.estHours) || 0), 0);
+        const actH = pTasks.reduce((acc, t) => acc + (Number(t.actHours) || 0), 0);
+        const isCurrent = p.id === state.currentProjectId;
+        const memberNames = (p.teamMembers || []).map(mId => getMemberName(mId)).join(', ');
+
+        return `
+          <tr style="${isCurrent ? 'background:#eff6ff;' : ''}">
+            <td>
+              <div style="font-weight:700; color:var(--primary); font-family:monospace;">${p.code}</div>
+              <div style="font-weight:800; color:#0f172a; margin-top:2px;">${p.name}</div>
+            </td>
+            <td>
+              <span class="badge badge-purple">${getClientName(p.clientId)}</span>
+            </td>
+            <td style="font-size:12px; color:#475569; max-width:280px;">${memberNames || '無員工作分派'}</td>
+            <td style="font-family:monospace; font-weight:700;">${actH} / ${estH || 392}h</td>
+            <td style="font-family:monospace;">${p.targetEndDate || '-'}</td>
+            <td>
+              <span class="badge ${p.status === '進行中' ? 'badge-success' : 'badge-slate'}">${p.status}</span>
+            </td>
+            <td style="text-align: right; white-space: nowrap;">
+              <button class="btn btn-primary btn-xs" onclick="enterProjectTier('${p.id}')">
+                ${isCurrent ? '★ 進入工作區 ➜' : '進入專案 ➜'}
+              </button>
+              ${hasPermission('proj_edit') ? `<button class="btn btn-secondary btn-xs" onclick="editProject('${p.id}')" style="margin-left:4px;">編輯</button>` : ''}
+              ${hasPermission('proj_delete') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteProject('${p.id}')" style="margin-left:4px;">刪除</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openProjectModal(id = null) {
+      document.getElementById('form-project-id').value = id || '';
+      document.getElementById('modal-project-title').innerText = id ? '編輯主專案' : '新增主專案';
+
+      const clientSelect = document.getElementById('form-project-client');
+      clientSelect.innerHTML = state.clients.map(c => `<option value="${c.id}">${c.name} (${c.code})</option>`).join('');
+
+      const memberBoxes = document.getElementById('form-project-members-checkboxes');
+      memberBoxes.innerHTML = state.members.map(m => `
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" class="proj-member-chk" value="${m.id}">
+          <span>${m.name} (${m.role})</span>
+        </label>
+      `).join('');
+
+      if (id) {
+        const p = state.projects.find(x => x.id === id);
+        if (p) {
+          document.getElementById('form-project-name').value = p.name;
+          document.getElementById('form-project-type').value = p.type || '外部專案 (EXT)';
+          document.getElementById('form-project-client').value = p.clientId;
+          document.getElementById('form-project-code').value = p.code;
+          document.getElementById('form-project-desc').value = p.description || '';
+          document.getElementById('form-project-start').value = p.startDate || TODAY;
+          document.getElementById('form-project-end').value = p.targetEndDate || '2026-09-30';
+          document.getElementById('form-project-status').value = p.status || '進行中';
+
+          const memSet = new Set(p.teamMembers || []);
+          document.querySelectorAll('.proj-member-chk').forEach(chk => {
+            chk.checked = memSet.has(chk.value);
+          });
+        }
+      } else {
+        document.getElementById('form-project-name').value = '';
+        document.getElementById('form-project-type').value = '外部專案 (EXT)';
+        document.getElementById('form-project-code').value = 'PROJ-03';
+        document.getElementById('form-project-desc').value = '';
+        document.getElementById('form-project-start').value = TODAY;
+        document.getElementById('form-project-end').value = '2026-09-30';
+        document.getElementById('form-project-status').value = '進行中';
+        document.querySelectorAll('.proj-member-chk').forEach(chk => chk.checked = true);
+      }
+      openModal('modal-project');
+    }
+
+    function saveProject() {
+      const id = document.getElementById('form-project-id').value;
+      const name = document.getElementById('form-project-name').value.trim();
+      const type = document.getElementById('form-project-type').value;
+      const clientId = document.getElementById('form-project-client').value;
+      const code = document.getElementById('form-project-code').value.trim();
+      const desc = document.getElementById('form-project-desc').value.trim();
+      const startDate = document.getElementById('form-project-start').value;
+      const targetEndDate = document.getElementById('form-project-end').value;
+      const status = document.getElementById('form-project-status').value;
+
+      if (!name || !code) {
+        alert('請填寫主專案名稱與專案編號！');
+        return;
+      }
+
+      const teamMembers = [];
+      document.querySelectorAll('.proj-member-chk:checked').forEach(chk => teamMembers.push(chk.value));
+
+      if (id) {
+        const p = state.projects.find(x => x.id === id);
+        if (p) {
+          p.name = name; p.type = type; p.clientId = clientId; p.code = code;
+          p.description = desc; p.startDate = startDate; p.targetEndDate = targetEndDate;
+          p.status = status; p.teamMembers = teamMembers;
+        }
+        showToast('主專案已更新！');
+      } else {
+        const newProjId = 'prj-' + Date.now();
+        state.projects.push({
+          id: newProjId, name, type, clientId, code, description: desc,
+          startDate, targetEndDate, status, teamMembers
+        });
+        state.currentProjectId = newProjId; // Automatically switch to new project
+        showToast('主專案建立成功，已切換至該專案！');
+      }
+      closeModal('modal-project');
+      renderAll();
+    }
+
+    function editProject(id) { openProjectModal(id); }
+    function deleteProject(id) {
+      if (confirm('確定刪除此專案嗎？')) {
+        state.projects = state.projects.filter(p => p.id !== id);
+        if (state.currentProjectId === id && state.projects.length > 0) {
+          state.currentProjectId = state.projects[0].id;
+        }
+        renderAll();
+        showToast('專案已刪除');
+      }
+    }
+
+    // ================= 6. GANTT CHART ENGINE (DRAG & DROP / RESIZING) =================
+    let ganttDragState = null;
+
+    function togglePublishToWorkLogs(isChecked) {
+      showToast(isChecked ? '已發佈本專案所有排程至工時日誌' : '已取消排程發佈');
+    }
+
+    function toggleGanttExpand(type, id) {
+      if (type === 'phase') {
+        const p = state.phases.find(x => x.id === id);
+        if (p) p.expanded = !p.expanded;
+      } else if (type === 'module') {
+        state.phases.forEach(p => {
+          const m = (p.modules || []).find(x => x.id === id);
+          if (m) m.expanded = !m.expanded;
+        });
+      }
+      renderGraphicalGantt();
+    }
+
+    function inlineAddPhase() {
+      const name = prompt('請輸入要新增的階段名稱 (例如: 第三階段: 測試與部署上線):');
+      if (name && name.trim()) {
+        state.phases.push({
+          id: 'phase-' + Date.now(),
+          projectId: state.currentProjectId,
+          name: name.trim(),
+          expanded: true,
+          modules: []
+        });
+        renderAll();
+        showToast(`已新增階段「${name.trim()}」！`);
+      }
+    }
+
+    function inlineAddModule(phaseId) {
+      const name = prompt('請輸入要新增的大功能名稱:');
+      if (name && name.trim()) {
+        const p = state.phases.find(x => x.id === phaseId);
+        if (p) {
+          if (!p.modules) p.modules = [];
+          p.modules.push({
+            id: 'mod-' + Date.now(),
+            name: name.trim(),
+            expanded: true,
+            tasks: []
+          });
+          renderAll();
+          showToast(`已新增大功能「${name.trim()}」！`);
+        }
+      }
+    }
+
+    function inlineAddTask(phaseId, moduleId) {
+      const title = prompt('請輸入要新增的小功能/任務名稱:');
+      if (title && title.trim()) {
+        const p = state.phases.find(x => x.id === phaseId);
+        if (p) {
+          const m = (p.modules || []).find(x => x.id === moduleId);
+          if (m) {
+            if (!m.tasks) m.tasks = [];
+            const newTaskId = 'task-' + Date.now();
+            m.tasks.push({
+              id: newTaskId,
+              projectId: state.currentProjectId,
+              phaseId,
+              moduleId,
+              wbs: `${p.name.charAt(0) || '1'}.${m.name.charAt(0) || '1'}.${m.tasks.length + 1}`,
+              title: title.trim(),
+              type: '功能',
+              assignee: state.members[0] ? state.members[0].name : '陳專案經理',
+              estHours: 8,
+              actHours: 0,
+              startDate: TODAY,
+              dueDate: '2026-09-15',
+              status: '進行中'
+            });
+            renderAll();
+            showToast(`已新增小功能「${title.trim()}」！`);
+          }
+        }
+      }
+    }
+
+    // Gantt Drag & Resize Handlers
+    function startGanttDrag(e, taskId, mode = 'move') {
+      e.preventDefault();
+      e.stopPropagation();
+      const task = state.tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      ganttDragState = {
+        taskId,
+        task,
+        mode, // 'move', 'resize-left', 'resize-right'
+        initialClientX: e.clientX,
+        origStart: new Date(task.startDate || TODAY),
+        origDue: new Date(task.dueDate || TODAY),
+        colWidth: 28,
+        hasMoved: false
+      };
+
+      document.addEventListener('mousemove', onGanttDragMove);
+      document.addEventListener('mouseup', onGanttDragEnd);
+    }
+
+    function onGanttDragMove(e) {
+      if (!ganttDragState) return;
+      const deltaX = e.clientX - ganttDragState.initialClientX;
+      if (Math.abs(deltaX) > 3) ganttDragState.hasMoved = true;
+    }
+
+    function onGanttDragEnd(e) {
+      if (!ganttDragState) return;
+      const deltaX = e.clientX - ganttDragState.initialClientX;
+      const daysShift = Math.round(deltaX / ganttDragState.colWidth);
+
+      document.removeEventListener('mousemove', onGanttDragMove);
+      document.removeEventListener('mouseup', onGanttDragEnd);
+
+      if (ganttDragState.hasMoved && daysShift !== 0) {
+        const t = ganttDragState.task;
+        if (ganttDragState.mode === 'move') {
+          const s = new Date(ganttDragState.origStart);
+          const d = new Date(ganttDragState.origDue);
+          s.setDate(s.getDate() + daysShift);
+          d.setDate(d.getDate() + daysShift);
+          t.startDate = s.toISOString().split('T')[0];
+          t.dueDate = d.toISOString().split('T')[0];
+        } else if (ganttDragState.mode === 'resize-left') {
+          const s = new Date(ganttDragState.origStart);
+          s.setDate(s.getDate() + daysShift);
+          if (s <= new Date(t.dueDate)) {
+            t.startDate = s.toISOString().split('T')[0];
+          }
+        } else if (ganttDragState.mode === 'resize-right') {
+          const d = new Date(ganttDragState.origDue);
+          d.setDate(d.getDate() + daysShift);
+          if (d >= new Date(t.startDate)) {
+            t.dueDate = d.toISOString().split('T')[0];
+          }
+        }
+        renderAll();
+        showToast(`已更新「${t.title}」排程為：${t.startDate} ~ ${t.dueDate}`);
+      } else if (!ganttDragState.hasMoved) {
+        editTask(ganttDragState.taskId);
+      }
+
+      ganttDragState = null;
+    }
+
+    function renderGraphicalGantt() {
+      const currP = getCurrentProject();
+      if (!currP) return;
+
+      const projectPhases = state.phases.filter(p => p.projectId === currP.id);
+      const startDateMin = new Date('2026-08-01');
+      const totalDays = 46;
+      const colWidth = 28;
+      const headerH = 44;
+      const rowH = 40;
+
+      const leftContainer = document.getElementById('gantt-left-rows');
+      let leftHtml = '';
+      let totalTreeRows = 0;
+
+      projectPhases.forEach((phase, pIdx) => {
+        totalTreeRows++;
+        const pExpanded = phase.expanded !== false;
+        leftHtml += `
+          <div class="gantt-left-row level-1">
+            <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
+              <span style="cursor:pointer; font-size:11px;" onclick="toggleGanttExpand('phase', '${phase.id}')">${pExpanded ? '▼' : '▶'}</span>
+              <span style="cursor:pointer;" title="${phase.name}">${phase.name}</span>
+            </div>
+            ${hasPermission('gantt_add_task') ? `<button class="btn btn-secondary btn-xs" style="color:#1e3a8a; background:white; font-weight:800; min-width:24px; height:24px; padding:0;" title="新增大功能" onclick="inlineAddModule('${phase.id}')">+</button>` : ''}
+          </div>
+        `;
+
+        if (pExpanded) {
+          (phase.modules || []).forEach((module, mIdx) => {
+            totalTreeRows++;
+            const mExpanded = module.expanded !== false;
+            leftHtml += `
+              <div class="gantt-left-row level-2">
+                <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
+                  <span style="cursor:pointer; font-size:11px;" onclick="toggleGanttExpand('module', '${module.id}')">${mExpanded ? '▼' : '▶'}</span>
+                  <span style="cursor:pointer;" title="${module.name}">${module.name}</span>
+                </div>
+                ${hasPermission('gantt_add_task') ? `<button class="btn btn-secondary btn-xs" style="font-weight:800; min-width:24px; height:24px; padding:0;" title="新增小功能" onclick="inlineAddTask('${phase.id}', '${module.id}')">+</button>` : ''}
+              </div>
+            `;
+
+            if (mExpanded) {
+              (module.tasks || []).forEach((t, tIdx) => {
+                totalTreeRows++;
+                leftHtml += `
+                  <div class="gantt-left-row level-3" style="cursor:pointer;" onclick="editTask('${t.id}')">
+                    <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
+                      <span style="font-size:10px; color:#2563eb; font-weight:700;">${t.wbs || (tIdx + 1)}</span>
+                      <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${t.title}">${t.title}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                      <span class="badge ${t.status === '已完成' ? 'badge-success' : 'badge-info'}" style="font-size:10px;">${t.status}</span>
+                    </div>
+                  </div>
+                `;
+              });
+            }
+          });
+        }
+      });
+
+      leftContainer.innerHTML = leftHtml || `<div style="padding:20px; color:#94a3b8; text-align:center;">此專案尚未建立排程階段</div>`;
+
+      // Timeline SVG
+      const rightContainer = document.getElementById('gantt-timeline-container');
+      const totalHeight = headerH + totalTreeRows * rowH + 20;
+      const totalWidth = totalDays * colWidth;
+
+      function getX(dateStr) {
+        const d = new Date(dateStr || TODAY);
+        const diff = Math.max(0, Math.floor((d - startDateMin) / (1000 * 60 * 60 * 24)));
+        return diff * colWidth;
+      }
+
+      function getW(startStr, endStr) {
+        const x1 = getX(startStr);
+        const x2 = getX(endStr) + colWidth;
+        return Math.max(colWidth, x2 - x1);
+      }
+
+      let daysHtml = '';
+      for (let i = 0; i < totalDays; i++) {
+        const d = new Date(startDateMin);
+        d.setDate(d.getDate() + i);
+        const dayNum = d.getDate();
+        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+        daysHtml += `
+          <g>
+            <rect x="${i * colWidth}" y="0" width="${colWidth}" height="${totalHeight}" fill="${isWeekend ? '#f8fafc' : '#ffffff'}" stroke="#f1f5f9" stroke-width="1"/>
+            <text x="${i * colWidth + colWidth / 2}" y="26" text-anchor="middle" font-size="11" fill="#64748b" font-family="monospace">${dayNum}</text>
+          </g>
+        `;
+      }
+
+      let currentRow = 0;
+      let barsHtml = '';
+
+      projectPhases.forEach(phase => {
+        currentRow++;
+        const pExpanded = phase.expanded !== false;
+
+        if (pExpanded) {
+          (phase.modules || []).forEach(module => {
+            currentRow++;
+            const mExpanded = module.expanded !== false;
+
+            if (mExpanded) {
+              (module.tasks || []).forEach(t => {
+                const rIndex = currentRow++;
+                const x = getX(t.startDate);
+                const w = getW(t.startDate, t.dueDate);
+                const y = headerH + rIndex * rowH + 8;
+                const barColor = t.status === '已完成' ? '#16a34a' : t.type === 'Bug' ? '#d97706' : t.type === '需求變更' ? '#8b5cf6' : '#0284c7';
+                const bgFill = t.status === '已完成' ? '#dcfce7' : t.type === 'Bug' ? '#fef3c7' : t.type === '需求變更' ? '#f3e8ff' : '#e0f2fe';
+
+                barsHtml += `
+                  <g class="gantt-bar-group">
+                    <title>${t.title} (${t.startDate} ~ ${t.dueDate})&#10;拖曳本體移動排程，拖曳兩端邊緣可調整工期</title>
+                    <!-- Main Bar Body (Draggable) -->
+                    <rect x="${x}" y="${y}" width="${w}" height="24" rx="6" fill="${bgFill}" stroke="${barColor}" stroke-width="1.5" onmousedown="startGanttDrag(event, '${t.id}', 'move')"/>
+                    
+                    <!-- Left Resize Handle -->
+                    <rect class="gantt-resize-handle" x="${x}" y="${y}" width="6" height="24" rx="2" onmousedown="startGanttDrag(event, '${t.id}', 'resize-left')"/>
+                    
+                    <!-- Right Resize Handle -->
+                    <rect class="gantt-resize-handle" x="${x + w - 6}" y="${y}" width="6" height="24" rx="2" onmousedown="startGanttDrag(event, '${t.id}', 'resize-right')"/>
+                    
+                    <text x="${x + 10}" y="${y + 16}" font-size="11" font-weight="700" fill="#0f172a" pointer-events="none" style="user-select:none;">${t.title}</text>
+                  </g>
+                `;
+              });
+            }
+          });
+        }
+      });
+
+      rightContainer.innerHTML = `
+        <svg width="${totalWidth}" height="${totalHeight}" style="display:block;">
+          ${daysHtml}
+          <line x1="0" y1="${headerH}" x2="${totalWidth}" y2="${headerH}" stroke="#cbd5e1" stroke-width="2"/>
+          ${barsHtml}
+        </svg>
+      `;
+    }
+
+    // ================= 7. WORK LOGS =================
+    function renderWorkLogsTable() {
+      const tbody = document.getElementById('worklogs-table-body');
+      if (!tbody) return;
+
+      const currP = getCurrentProject();
+      // Filter worklogs belonging to current project
+      const logs = state.workLogs.filter(l => {
+        const t = state.tasks.find(x => x.id === l.taskId);
+        return t && t.projectId === currP.id;
+      });
+
+      tbody.innerHTML = logs.map(l => {
+        const t = state.tasks.find(x => x.id === l.taskId);
+        return `
+          <tr>
+            <td style="font-family:monospace; font-weight:700; color:#0f172a;">${l.date}</td>
+            <td>
+              <div style="font-weight:700; color:#2563eb;">${t ? t.title : '未知任務'}</div>
+              <div style="font-size:11px; color:#64748b;">專案: ${currP.name}</div>
+            </td>
+            <td style="font-weight:600;">${l.userName}</td>
+            <td>
+              <span class="badge badge-info" style="font-size:12px; font-weight:800;">${l.hours} 小時</span>
+            </td>
+            <td style="color:#475569; font-size:12px;">${l.notes || '-'}</td>
+            <td style="text-align: right;">
+              ${hasPermission('worklog_edit') ? `<button class="btn btn-secondary btn-xs" onclick="editWorkLog('${l.id}')">編輯</button>` : ''}
+              ${hasPermission('worklog_delete') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteWorkLog('${l.id}')">刪除</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('') || `<tr><td colspan="6" style="text-align:center; padding:24px; color:#94a3b8;">目前專案尚無工時填報紀錄</td></tr>`;
+
+      // Summary grid
+      const grid = document.getElementById('member-hours-summary-grid');
+      if (grid) {
+        grid.innerHTML = state.members.map(m => {
+          const mLogs = logs.filter(l => l.userName.includes(m.name.split(' ')[0]));
+          const mSum = mLogs.reduce((acc, l) => acc + (Number(l.hours) || 0), 0);
+          return `
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+              <div style="font-size:12px; font-weight:700; color:#334155;">${m.name}</div>
+              <div style="font-size:18px; font-weight:800; color:#2563eb; margin-top:4px;">${mSum}h</div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function openWorkLogModal(id = null) {
+      document.getElementById('form-worklog-id').value = id || '';
+      document.getElementById('modal-worklog-title').innerText = id ? '編輯工時日誌' : '填報工時日誌 (Log Work)';
+
+      const currP = getCurrentProject();
+      const taskSelect = document.getElementById('form-worklog-task');
+      // Only show tasks of the active project!
+      const pTasks = state.tasks.filter(t => t.projectId === currP.id);
+      taskSelect.innerHTML = pTasks.map(t => `<option value="${t.id}">[${t.wbs || t.type}] ${t.title} (ID: ${t.id})</option>`).join('');
+
+      if (id) {
+        const l = state.workLogs.find(x => x.id === id);
+        if (l) {
+          taskSelect.value = l.taskId;
+          document.getElementById('form-worklog-date').value = l.date;
+          document.getElementById('form-worklog-hours').value = l.hours;
+          document.getElementById('form-worklog-user').value = l.userName;
+          document.getElementById('form-worklog-notes').value = l.notes || '';
+        }
+      } else {
+        document.getElementById('form-worklog-date').value = TODAY;
+        document.getElementById('form-worklog-hours').value = '4';
+        document.getElementById('form-worklog-user').value = currentAuthUser ? currentAuthUser.displayName : 'irene (專案經理 (PM))';
+        document.getElementById('form-worklog-notes').value = '';
+      }
+      openModal('modal-worklog');
+    }
+
+    function saveWorkLog() {
+      const id = document.getElementById('form-worklog-id').value;
+      const taskId = document.getElementById('form-worklog-task').value;
+      const date = document.getElementById('form-worklog-date').value;
+      const hours = Number(document.getElementById('form-worklog-hours').value) || 0;
+      const userName = document.getElementById('form-worklog-user').value.trim();
+      const notes = document.getElementById('form-worklog-notes').value.trim();
+
+      if (!taskId || !date || hours <= 0) {
+        alert('請確實填寫任務、日期與有效工時！');
+        return;
+      }
+
+      if (id) {
+        const l = state.workLogs.find(x => x.id === id);
+        if (l) {
+          l.taskId = taskId; l.date = date; l.hours = hours; l.userName = userName; l.notes = notes;
+        }
+        showToast('工時記錄已更新！');
+      } else {
+        state.workLogs.push({ id: 'log-' + Date.now(), taskId, date, hours, userName, notes });
+        showToast('工時填報成功！');
+      }
+      closeModal('modal-worklog');
+      renderAll();
+    }
+
+    function editWorkLog(id) { openWorkLogModal(id); }
+    function deleteWorkLog(id) {
+      if (confirm('確定刪除此工時記錄嗎？')) {
+        state.workLogs = state.workLogs.filter(l => l.id !== id);
+        renderAll();
+        showToast('工時已刪除');
+      }
+    }
+
+    // ================= 8. TASKS & ISSUES =================
+    function setTaskFilter(type, btn) {
+      currentTaskFilter = type;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
+      if (btn) btn.classList.add('active-tab');
+      renderTasksTable();
+    }
+
+    function renderTasksTable() {
+      const container = document.getElementById('tasks-hierarchical-container');
+      if (!container) return;
+
+      const currP = getCurrentProject();
+      const projectPhases = state.phases.filter(p => p.projectId === currP.id);
+      const searchKeyword = (document.getElementById('tasks-search-input')?.value || '').toLowerCase().trim();
+
+      let html = '';
+
+      projectPhases.forEach(phase => {
+        let phaseModulesHtml = '';
+        let phaseItemCount = 0;
+
+        (phase.modules || []).forEach(module => {
+          let moduleTasks = (module.tasks || []).filter(t => {
+            if (currentTaskFilter !== 'all' && t.type !== currentTaskFilter) return false;
+            if (searchKeyword) {
+              const matchTitle = (t.title || '').toLowerCase().includes(searchKeyword);
+              const matchAssignee = (t.assignee || '').toLowerCase().includes(searchKeyword);
+              return matchTitle || matchAssignee;
+            }
+            return true;
+          });
+
+          phaseItemCount += moduleTasks.length;
+
+          if (moduleTasks.length > 0) {
+            const taskRows = moduleTasks.map(t => {
+              const typeBadge = t.type === 'Bug' ? 'badge-danger' : t.type === '需求變更' ? 'badge-purple' : 'badge-info';
+              return `
+                <tr>
+                  <td>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <span style="font-weight:700; color:#2563eb; font-size:11px;">${t.wbs || '★'}</span>
+                      <strong style="color:#0f172a;">${t.title}</strong>
+                    </div>
+                  </td>
+                  <td><span class="badge ${typeBadge}">${t.type}</span></td>
+                  <td>${currP.name}</td>
+                  <td>${t.assignee || '未指派'}</td>
+                  <td>${t.severity || '無'}</td>
+                  <td style="font-family:monospace; font-size:12px;">${t.startDate} ~ ${t.dueDate}</td>
+                  <td style="font-family:monospace; font-weight:700;">${t.estHours} / ${t.actHours} 小時</td>
+                  <td><span class="badge ${t.status === '已完成' ? 'badge-success' : 'badge-info'}">${t.status}</span></td>
+                  <td style="text-align: right; white-space:nowrap;">
+                    ${hasPermission('task_edit') ? `<button class="btn btn-secondary btn-xs" onclick="editTask('${t.id}')">編輯</button>` : ''}
+                    ${hasPermission('task_delete') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteTask('${t.id}')">刪除</button>` : ''}
+                  </td>
+                </tr>
+              `;
+            }).join('');
+
+            phaseModulesHtml += `
+              <div style="margin-bottom:14px; background:white; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+                <div style="background:#f1f5f9; padding:8px 14px; font-weight:700; font-size:12px; color:#1e3a8a; display:flex; justify-content:space-between; align-items:center;">
+                  <span>📁 第二階: ${module.name}</span>
+                  <span class="badge badge-info">${moduleTasks.length} 個項目</span>
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>任務/議題名稱</th>
+                      <th>類型</th>
+                      <th>所屬主專案</th>
+                      <th>指派處理人</th>
+                      <th>危害等級</th>
+                      <th>開始~截止日期</th>
+                      <th>預估/實際工時</th>
+                      <th>狀態</th>
+                      <th style="text-align:right;">操作項目</th>
+                    </tr>
+                  </thead>
+                  <tbody>${taskRows}</tbody>
+                </table>
+              </div>
+            `;
+          }
+        });
+
+        if (phaseModulesHtml) {
+          html += `
+            <div class="card" style="padding:16px; border-left:4px solid #2563eb;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="font-size:14px; font-weight:800; color:#1e40af;">📂 第一階: ${phase.name}</h3>
+                <span class="badge badge-purple">${phaseItemCount} 個項目</span>
+              </div>
+              ${phaseModulesHtml}
+            </div>
+          `;
+        }
+      });
+
+      container.innerHTML = html || `<div class="card" style="text-align:center; padding:36px; color:#94a3b8;">此專案目前無符合篩選條件之任務與議題</div>`;
+    }
+
+    function openTaskModal(taskId = null) {
+      document.getElementById('form-task-id').value = taskId || '';
+      document.getElementById('modal-task-title').innerText = taskId ? '編輯任務 / 排程項目' : '新增任務 / 排程項目';
+
+      const projSelect = document.getElementById('form-task-project');
+      projSelect.innerHTML = state.projects.map(p => `<option value="${p.id}" ${p.id === state.currentProjectId ? 'selected' : ''}>${p.name}</option>`).join('');
+
+      const assigneeSelect = document.getElementById('form-task-assignee');
+      assigneeSelect.innerHTML = state.members.map(m => `<option value="${m.name}">${m.name} (${m.role})</option>`).join('');
+
+      onTaskProjectSelectChanged(state.currentProjectId);
+
+      if (taskId) {
+        const t = state.tasks.find(x => x.id === taskId);
+        if (t) {
+          projSelect.value = t.projectId || state.currentProjectId;
+          onTaskProjectSelectChanged(t.projectId || state.currentProjectId);
+          document.getElementById('form-task-phase').value = t.phaseId;
+          onTaskPhaseSelectChanged(t.phaseId);
+          document.getElementById('form-task-module').value = t.moduleId;
+          document.getElementById('form-task-wbs').value = t.wbs || '';
+          document.getElementById('form-task-title').value = t.title;
+          document.getElementById('form-task-type').value = t.type || '功能';
+          document.getElementById('form-task-assignee').value = t.assignee;
+          document.getElementById('form-task-start').value = t.startDate || TODAY;
+          document.getElementById('form-task-due').value = t.dueDate || TODAY;
+          document.getElementById('form-task-est-hours').value = t.estHours || 8;
+          document.getElementById('form-task-status').value = t.status || '進行中';
+          document.getElementById('form-task-severity').value = t.severity || '無';
+        }
+      } else {
+        document.getElementById('form-task-wbs').value = '1.1.1';
+        document.getElementById('form-task-title').value = '';
+        document.getElementById('form-task-type').value = '功能';
+        document.getElementById('form-task-start').value = TODAY;
+        document.getElementById('form-task-due').value = TODAY;
+        document.getElementById('form-task-est-hours').value = 8;
+        document.getElementById('form-task-status').value = '進行中';
+        document.getElementById('form-task-severity').value = '無';
+      }
+      openModal('modal-task');
+    }
+
+    function onTaskProjectSelectChanged(pId) {
+      const pPhases = state.phases.filter(p => p.projectId === pId);
+      const phaseSel = document.getElementById('form-task-phase');
+      phaseSel.innerHTML = pPhases.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      if (pPhases.length > 0) {
+        onTaskPhaseSelectChanged(pPhases[0].id);
+      }
+    }
+
+    function onTaskPhaseSelectChanged(phaseId) {
+      const phase = state.phases.find(p => p.id === phaseId);
+      const modSel = document.getElementById('form-task-module');
+      if (phase && phase.modules && phase.modules.length > 0) {
+        modSel.innerHTML = phase.modules.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+      } else {
+        modSel.innerHTML = `<option value="">無大功能 (請先在甘特圖新增)</option>`;
+      }
+    }
+
+    function saveTask() {
+      const id = document.getElementById('form-task-id').value;
+      const projectId = document.getElementById('form-task-project').value;
+      const phaseId = document.getElementById('form-task-phase').value;
+      const moduleId = document.getElementById('form-task-module').value;
+      const wbs = document.getElementById('form-task-wbs').value.trim();
+      const title = document.getElementById('form-task-title').value.trim();
+      const type = document.getElementById('form-task-type').value;
+      const assignee = document.getElementById('form-task-assignee').value;
+      const startDate = document.getElementById('form-task-start').value;
+      const dueDate = document.getElementById('form-task-due').value;
+      const estHours = Number(document.getElementById('form-task-est-hours').value) || 8;
+      const status = document.getElementById('form-task-status').value;
+      const severity = document.getElementById('form-task-severity').value;
+
+      if (!title) {
+        alert('請填寫任務名稱！');
+        return;
+      }
+
+      if (id) {
+        const t = state.tasks.find(x => x.id === id);
+        if (t) {
+          t.projectId = projectId; t.phaseId = phaseId; t.moduleId = moduleId;
+          t.wbs = wbs; t.title = title; t.type = type; t.assignee = assignee;
+          t.startDate = startDate; t.dueDate = dueDate; t.estHours = estHours;
+          t.status = status; t.severity = severity;
+        }
+        showToast('任務已成功更新！');
+      } else {
+        const phase = state.phases.find(p => p.id === phaseId);
+        if (!phase) { alert('請先建立或選擇階段！'); return; }
+        let targetMod = (phase.modules || []).find(m => m.id === moduleId);
+        if (!targetMod) {
+          if (!phase.modules) phase.modules = [];
+          targetMod = { id: 'mod-' + Date.now(), name: '通用核心模組', tasks: [] };
+          phase.modules.push(targetMod);
+        }
+        targetMod.tasks.push({
+          id: 'task-' + Date.now(),
+          projectId, phaseId, moduleId: targetMod.id,
+          wbs, title, type, assignee, startDate, dueDate, estHours, actHours: 0, status, severity
+        });
+        showToast('任務建立成功！');
+      }
+      closeModal('modal-task');
+      renderAll();
+    }
+
+    function editTask(id) { openTaskModal(id); }
+    function deleteTask(id) {
+      if (confirm('確定刪除此任務嗎？')) {
+        state.phases.forEach(p => {
+          (p.modules || []).forEach(m => {
+            m.tasks = (m.tasks || []).filter(t => t.id !== id);
+          });
+        });
+        renderAll();
+        showToast('任務已刪除');
+      }
+    }
+
+    // ================= 9. ISSUES & QA TESTING TRACKER =================
+    function renderIssuesTable() {
+      const tbody = document.getElementById('issues-table-body');
+      if (!tbody) return;
+
+      const currP = getCurrentProject();
+      const searchKeyword = (document.getElementById('issues-search-input')?.value || '').toLowerCase().trim();
+
+      const pIssues = state.issues.filter(i => {
+        if (i.projectId !== currP.id) return false;
+        if (searchKeyword) {
+          const matchTitle = (i.title || '').toLowerCase().includes(searchKeyword);
+          const matchAssignee = (i.assignee || '').toLowerCase().includes(searchKeyword);
+          return matchTitle || matchAssignee;
+        }
+        return true;
+      });
+
+      tbody.innerHTML = pIssues.map(i => {
+        const attachCount = (i.attachments || []).length;
+        const statusBadge = i.status === '已關閉' || i.status === '已修復' ? 'badge-success' : i.status === '處理中' ? 'badge-info' : 'badge-warning';
+        return `
+          <tr>
+            <td style="font-family:monospace; font-weight:700;">${TODAY}</td>
+            <td><span class="badge badge-purple">${i.category || '問題瑕疵'}</span></td>
+            <td>
+              <div style="font-weight:800; color:#0f172a;">${i.title}</div>
+              <div style="font-size:11px; color:#64748b; margin-top:2px;">${i.descriptionHtml ? i.descriptionHtml.replace(/<[^>]*>?/gm, '').substring(0, 40) + '...' : ''}</div>
+              ${attachCount > 0 ? `<div style="margin-top:4px;"><span class="badge badge-slate">📎 ${attachCount} 個附件</span></div>` : ''}
+            </td>
+            <td>${currP.name}</td>
+            <td style="font-weight:600;">${i.assignee || '未指派'}</td>
+            <td><span class="badge ${statusBadge}">${i.status}</span></td>
+            <td style="font-family:monospace;">${i.dueDate || '-'}</td>
+            <td style="text-align: right; white-space:nowrap;">
+              ${hasPermission('issue_edit') ? `<button class="btn btn-secondary btn-xs" onclick="editIssue('${i.id}')">檢視 / 編輯</button>` : ''}
+              ${hasPermission('issue_delete') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteIssue('${i.id}')">刪除</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('') || `<tr><td colspan="8" style="text-align:center; padding:24px; color:#94a3b8;">此專案尚無任何提報之問題或測試追蹤項目</td></tr>`;
+    }
+
+    function openIssueModal(issueId = null) {
+      document.getElementById('form-issue-id').value = issueId || '';
+      document.getElementById('modal-issue-title').innerText = issueId ? '編輯問題與測試追蹤' : '提報問題與測試追蹤 (HTML 富文本 / 附件)';
+
+      const projSelect = document.getElementById('form-issue-project');
+      projSelect.innerHTML = state.projects.map(p => `<option value="${p.id}" ${p.id === state.currentProjectId ? 'selected' : ''}>${p.name}</option>`).join('');
+
+      const assigneeSelect = document.getElementById('form-issue-assignee');
+      assigneeSelect.innerHTML = state.members.map(m => `<option value="${m.name}">${m.name} (${m.role})</option>`).join('');
+
+      onIssueProjectSelectChanged(state.currentProjectId);
+
+      currentUploadedFiles = [];
+
+      if (issueId) {
+        const i = state.issues.find(x => x.id === issueId);
+        if (i) {
+          projSelect.value = i.projectId;
+          onIssueProjectSelectChanged(i.projectId);
+          document.getElementById('form-issue-task').value = i.taskId || '';
+          document.getElementById('form-issue-category').value = i.category || '問題瑕疵';
+          document.getElementById('form-issue-title-input').value = i.title;
+          document.getElementById('form-issue-assignee').value = i.assignee;
+          document.getElementById('form-issue-status').value = i.status || '已確認';
+          document.getElementById('issue-editor-content').innerHTML = i.descriptionHtml || '';
+          currentUploadedFiles = [...(i.attachments || [])];
+        }
+      } else {
+        document.getElementById('form-issue-category').value = '問題瑕疵';
+        document.getElementById('form-issue-title-input').value = '';
+        document.getElementById('form-issue-status').value = '已確認';
+        document.getElementById('issue-editor-content').innerHTML = '';
+      }
+      renderAttachmentPills();
+      openModal('modal-issue');
+    }
+
+    function onIssueProjectSelectChanged(pId) {
+      const pTasks = state.tasks.filter(t => t.projectId === pId);
+      const taskSelect = document.getElementById('form-issue-task');
+      taskSelect.innerHTML = `<option value="">(無關聯任務)</option>` + pTasks.map(t => `<option value="${t.id}">[${t.wbs || t.type}] ${t.title}</option>`).join('');
+    }
+
+    function execEditorCmd(cmd, val = null) {
+      document.execCommand(cmd, false, val);
+      document.getElementById('issue-editor-content').focus();
+    }
+
+    function triggerEditorImage() {
+      document.getElementById('editor-image-file').click();
+    }
+
+    function insertEditorImageFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        execEditorCmd('insertImage', e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function triggerAttachmentSelect() {
+      document.getElementById('issue-file-input').click();
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      document.getElementById('issue-dropzone').classList.add('dragover');
+    }
+
+    function handleDragLeave(e) {
+      document.getElementById('issue-dropzone').classList.remove('dragover');
+    }
+
+    function handleFileDrop(e) {
+      e.preventDefault();
+      document.getElementById('issue-dropzone').classList.remove('dragover');
+      handleAttachmentFiles(e.dataTransfer.files);
+    }
+
+    function handleAttachmentFiles(files) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        currentUploadedFiles.push({
+          name: file.name,
+          size: (file.size / 1024).toFixed(1) + ' KB',
+          type: file.type
+        });
+      }
+      renderAttachmentPills();
+    }
+
+    function renderAttachmentPills() {
+      const c = document.getElementById('issue-attachments-list');
+      if (!c) return;
+      c.innerHTML = currentUploadedFiles.map((f, idx) => `
+        <span class="attachment-pill">
+          <span>📄 ${f.name} (${f.size})</span>
+          <button type="button" onclick="removeAttachmentFile(${idx})" style="background:none; border:none; color:#f43f5e; cursor:pointer; font-weight:800;">✕</button>
+        </span>
+      `).join('');
+    }
+
+    function removeAttachmentFile(idx) {
+      currentUploadedFiles.splice(idx, 1);
+      renderAttachmentPills();
+    }
+
+    function saveIssue() {
+      const id = document.getElementById('form-issue-id').value;
+      const projectId = document.getElementById('form-issue-project').value;
+      const taskId = document.getElementById('form-issue-task').value;
+      const category = document.getElementById('form-issue-category').value;
+      const title = document.getElementById('form-issue-title-input').value.trim();
+      const assignee = document.getElementById('form-issue-assignee').value;
+      const status = document.getElementById('form-issue-status').value;
+      const descriptionHtml = document.getElementById('issue-editor-content').innerHTML;
+
+      if (!title) {
+        alert('請填寫問題標題！');
+        return;
+      }
+
+      if (id) {
+        const i = state.issues.find(x => x.id === id);
+        if (i) {
+          i.projectId = projectId; i.taskId = taskId; i.category = category;
+          i.title = title; i.assignee = assignee; i.status = status;
+          i.descriptionHtml = descriptionHtml; i.attachments = [...currentUploadedFiles];
+        }
+        showToast('問題追蹤項目已更新！');
+      } else {
+        state.issues.push({
+          id: 'issue-' + Date.now(),
+          projectId, taskId, category, title, assignee, status,
+          dueDate: '2026-09-30',
+          descriptionHtml,
+          attachments: [...currentUploadedFiles]
+        });
+        showToast('問題與測試記錄已成功發佈！');
+      }
+      closeModal('modal-issue');
+      renderAll();
+    }
+
+    function editIssue(id) { openIssueModal(id); }
+    function deleteIssue(id) {
+      if (confirm('確定刪除此問題紀錄嗎？')) {
+        state.issues = state.issues.filter(i => i.id !== id);
+        renderAll();
+        showToast('問題記錄已刪除');
+      }
+    }
+
+    // ================= EXPORT & BACKUP =================
+    function exportExcelReports() {
+      const currP = getCurrentProject();
+      const pTasks = state.tasks.filter(t => t.projectId === currP.id);
+
+      let csvContent = "\uFEFF專案名稱,任務WBS,任務名稱,類型,指派人員,開始日期,截止日期,預估工時,實際工時,狀態\n";
+      pTasks.forEach(t => {
+        csvContent += `"${currP.name}","${t.wbs || ''}","${t.title}","${t.type || '功能'}","${t.assignee}","${t.startDate}","${t.dueDate}",${t.estHours},${t.actHours},"${t.status}"\n`;
+      });
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currP.code}_Tasks_Report_${TODAY}.csv`;
+      a.click();
+      showToast('已成功匯出專案 CSV 任務報表！');
+    }
+
+    function exportJSONBackup() {
+      const jsonStr = JSON.stringify(state, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `B2B_PM_Full_Backup_${TODAY}.json`;
+      a.click();
+      showToast('已下載系統完整 JSON 備份檔！');
+    }
+
+    function triggerJSONImport() {
+      document.getElementById('json-file-input').click();
+    }
+
+    function importJSONBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported.projects && imported.phases) {
+            Object.assign(state, imported);
+            renderAll();
+            showToast('備份資料成功還原！');
+          } else { alert('無效的備份 JSON 檔案！'); }
+        } catch(err) { alert('解析備份檔案失敗: ' + err); }
+      };
+      reader.readAsText(file);
+    }
+
+    // Launch initial render safely
+    initAuthUser();
+    renderAll(true);
+    if (window.location.hash === '#modal-login') {
+      openLoginModal();
+    } else if (window.location.hash === '#tier2') {
+      enterProjectTier('proj-1');
+    }
+  </script>
+</body>
+</html>
