@@ -4799,7 +4799,7 @@
 
     function updateTaskStatusDropdownPermissions(currentStatus, assignees) {
       const statusSelect = document.getElementById('form-task-status');
-      if (!statusSelect) return;
+      if (!statusSelect || !statusSelect.options) return;
 
       const canComplete = hasPermission('task_complete_permission');
       const isManager = isCurrentRoleManager();
@@ -4831,7 +4831,8 @@
     function onTaskStatusChange(newStatus) {
       if (newStatus === '已完成' && !hasPermission('task_complete_permission')) {
         alert('⚠️ 您目前無「審核任務驗收結案 (切換為已完成)」權限，無法將任務設為已完成！');
-        document.getElementById('form-task-status').value = '待測試';
+        const hiddenInput = document.getElementById('form-task-status');
+        if (hiddenInput) hiddenInput.value = '待測試';
         return;
       }
       const estimator = document.getElementById('form-task-estimator')?.value || '';
@@ -4842,103 +4843,132 @@
     }
 
     function openTaskModal(taskId = null, prefillPhaseId = null, prefillModuleId = null) {
-      sanitizePhases();
-      state.tasks = getFlatTasks();
-      closeDateRangePicker();
-      document.getElementById('form-task-id').value = taskId || '';
+      try {
+        sanitizePhases();
+        state.tasks = getFlatTasks();
+        closeDateRangePicker();
+        const idEl = document.getElementById('form-task-id');
+        if (idEl) idEl.value = taskId || '';
 
-      const projSelect = document.getElementById('form-task-project');
-      projSelect.innerHTML = state.projects.map(p => `<option value="${p.id}" ${p.id === state.currentProjectId ? 'selected' : ''}>${p.name}</option>`).join('');
+        const projSelect = document.getElementById('form-task-project');
+        if (projSelect) {
+          projSelect.innerHTML = state.projects.map(p => `<option value="${p.id}" ${p.id === state.currentProjectId ? 'selected' : ''}>${p.name}</option>`).join('');
+        }
 
-      // Populate Estimator select
-      const estimatorSelect = document.getElementById('form-task-estimator');
-      if (estimatorSelect) {
-        estimatorSelect.innerHTML = '<option value="">-- 請指定評估人 --</option>' + 
-          state.members.map(m => `<option value="${m.name}">${m.name} (${m.role})</option>`).join('');
-      }
+        // Populate Estimator select
+        const estimatorSelect = document.getElementById('form-task-estimator');
+        if (estimatorSelect) {
+          estimatorSelect.innerHTML = '<option value="">-- 請指定評估人 --</option>' + 
+            state.members.map(m => `<option value="${m.name}">${m.name} (${m.role})</option>`).join('');
+        }
 
-      onTaskProjectSelectChanged(state.currentProjectId);
+        onTaskProjectSelectChanged(state.currentProjectId);
 
-      let taskStatus = '規劃中';
-      let taskEstimator = '';
-      let taskAssignees = [];
+        let taskStatus = '規劃中';
+        let taskEstimator = '';
+        let taskAssignees = [];
 
-      if (taskId) {
-        const t = state.tasks.find(x => x.id === taskId);
-        if (t) {
-          projSelect.value = t.projectId || state.currentProjectId;
-          onTaskProjectSelectChanged(t.projectId || state.currentProjectId);
-          document.getElementById('form-task-phase').value = t.phaseId;
-          onTaskPhaseSelectChanged(t.phaseId);
-          document.getElementById('form-task-module').value = t.moduleId;
-          document.getElementById('form-task-wbs').value = t.wbs || '';
-          document.getElementById('form-task-title').value = t.title || '';
+        if (taskId) {
+          const t = state.tasks.find(x => x.id === taskId);
+          if (t) {
+            if (projSelect) projSelect.value = t.projectId || state.currentProjectId;
+            onTaskProjectSelectChanged(t.projectId || state.currentProjectId);
+            const phaseSel = document.getElementById('form-task-phase');
+            if (phaseSel) {
+              phaseSel.value = t.phaseId;
+              onTaskPhaseSelectChanged(t.phaseId);
+            }
+            const modSel = document.getElementById('form-task-module');
+            if (modSel) modSel.value = t.moduleId;
+            const wbsEl = document.getElementById('form-task-wbs');
+            if (wbsEl) wbsEl.value = t.wbs || '';
+            const titleEl = document.getElementById('form-task-title');
+            if (titleEl) titleEl.value = t.title || '';
+            const bodyTitleInput = document.getElementById('form-task-title-input');
+            if (bodyTitleInput) bodyTitleInput.value = t.title || '';
+            const typeEl = document.getElementById('form-task-type');
+            if (typeEl) typeEl.value = t.type || '功能';
+
+            taskEstimator = getTaskEstimator(t);
+            if (estimatorSelect) estimatorSelect.value = taskEstimator;
+
+            taskAssignees = getTaskAssignees(t);
+            renderTaskAssigneesCheckboxes(taskAssignees);
+            const assigneeEl = document.getElementById('form-task-assignee');
+            if (assigneeEl) assigneeEl.value = taskAssignees.join(', ');
+
+            const expDateEl = document.getElementById('form-task-expected-date');
+            if (expDateEl) expDateEl.value = t.expectedDeliveryDate || '';
+            const startEl = document.getElementById('form-task-start');
+            if (startEl) startEl.value = t.startDate || '';
+            const dueEl = document.getElementById('form-task-due');
+            if (dueEl) dueEl.value = t.dueDate || '';
+            const hoursEl = document.getElementById('form-task-est-hours');
+            if (hoursEl) hoursEl.value = (t.estHours !== undefined && t.estHours !== null && t.estHours !== '') ? t.estHours : '';
+            taskStatus = t.status || '進行中';
+            setTaskModalStatus(taskStatus);
+            const sevEl = document.getElementById('form-task-severity');
+            if (sevEl) sevEl.value = t.severity || '無';
+            setModalTaskTitle(t.title, false);
+            updateScheduleRangeSummary();
+            updateTaskTypeSeverityState(t.type || '功能');
+          }
+        } else {
+          if (prefillPhaseId) {
+            const phaseSel = document.getElementById('form-task-phase');
+            if (phaseSel) {
+              phaseSel.value = prefillPhaseId;
+              onTaskPhaseSelectChanged(prefillPhaseId);
+            }
+          }
+          if (prefillModuleId) {
+            const modSel = document.getElementById('form-task-module');
+            if (modSel) {
+              modSel.value = prefillModuleId;
+            }
+          }
+          updateModalTaskAutoWBS();
+          const titleEl = document.getElementById('form-task-title');
+          if (titleEl) titleEl.value = '';
           const bodyTitleInput = document.getElementById('form-task-title-input');
-          if (bodyTitleInput) bodyTitleInput.value = t.title || '';
-          document.getElementById('form-task-type').value = t.type || '功能';
+          if (bodyTitleInput) bodyTitleInput.value = '';
+          const typeEl = document.getElementById('form-task-type');
+          if (typeEl) typeEl.value = '功能';
 
-          taskEstimator = getTaskEstimator(t);
-          if (estimatorSelect) estimatorSelect.value = taskEstimator;
+          // Default estimator to current user or first member
+          const defaultEstimator = (currentAuthUser && currentAuthUser.memberInfo) ? currentAuthUser.memberInfo.name : (state.members[0]?.name || '');
+          if (estimatorSelect) estimatorSelect.value = defaultEstimator;
+          taskEstimator = defaultEstimator;
 
-          taskAssignees = getTaskAssignees(t);
-          renderTaskAssigneesCheckboxes(taskAssignees);
-          document.getElementById('form-task-assignee').value = taskAssignees.join(', ');
+          renderTaskAssigneesCheckboxes([]);
+          const assigneeEl = document.getElementById('form-task-assignee');
+          if (assigneeEl) assigneeEl.value = '';
 
-          document.getElementById('form-task-expected-date').value = t.expectedDeliveryDate || '';
-          document.getElementById('form-task-start').value = t.startDate || '';
-          document.getElementById('form-task-due').value = t.dueDate || '';
-          document.getElementById('form-task-est-hours').value = (t.estHours !== undefined && t.estHours !== null && t.estHours !== '') ? t.estHours : '';
-          taskStatus = t.status || '進行中';
+          const expDateEl = document.getElementById('form-task-expected-date');
+          if (expDateEl) expDateEl.value = '';
+          const startEl = document.getElementById('form-task-start');
+          if (startEl) startEl.value = '';
+          const dueEl = document.getElementById('form-task-due');
+          if (dueEl) dueEl.value = '';
+          const hoursEl = document.getElementById('form-task-est-hours');
+          if (hoursEl) hoursEl.value = '';
+          taskStatus = '規劃中';
           setTaskModalStatus(taskStatus);
-          document.getElementById('form-task-severity').value = t.severity || '無';
-          setModalTaskTitle(t.title, false);
+          const sevEl = document.getElementById('form-task-severity');
+          if (sevEl) sevEl.value = '無';
+          setModalTaskTitle('', true);
           updateScheduleRangeSummary();
-          updateTaskTypeSeverityState(t.type || '功能');
+          updateTaskTypeSeverityState('功能');
         }
-      } else {
-        if (prefillPhaseId) {
-          const phaseSel = document.getElementById('form-task-phase');
-          if (phaseSel) {
-            phaseSel.value = prefillPhaseId;
-            onTaskPhaseSelectChanged(prefillPhaseId);
-          }
-        }
-        if (prefillModuleId) {
-          const modSel = document.getElementById('form-task-module');
-          if (modSel) {
-            modSel.value = prefillModuleId;
-          }
-        }
-        updateModalTaskAutoWBS();
-        document.getElementById('form-task-title').value = '';
-        const bodyTitleInput = document.getElementById('form-task-title-input');
-        if (bodyTitleInput) bodyTitleInput.value = '';
-        document.getElementById('form-task-type').value = '功能';
-
-        // Default estimator to current user or first member
-        const defaultEstimator = (currentAuthUser && currentAuthUser.memberInfo) ? currentAuthUser.memberInfo.name : (state.members[0]?.name || '');
-        if (estimatorSelect) estimatorSelect.value = defaultEstimator;
-        taskEstimator = defaultEstimator;
-
-        renderTaskAssigneesCheckboxes([]);
-        document.getElementById('form-task-assignee').value = '';
-
-        document.getElementById('form-task-expected-date').value = '';
-        document.getElementById('form-task-start').value = '';
-        document.getElementById('form-task-due').value = '';
-        document.getElementById('form-task-est-hours').value = '';
-        taskStatus = '規劃中';
-        setTaskModalStatus(taskStatus);
-        document.getElementById('form-task-severity').value = '無';
-        setModalTaskTitle('', true);
-        updateScheduleRangeSummary();
-        updateTaskTypeSeverityState('功能');
+        updateTaskScheduleSectionState(taskStatus, taskEstimator);
+        updateTaskStatusDropdownPermissions(taskStatus, taskAssignees);
+        updateTaskModalHeaderAndFooterActions(taskStatus, taskEstimator, taskAssignees);
+        updateTaskBasicFieldsPermissions();
+      } catch (err) {
+        console.error('Error initializing task modal:', err);
+      } finally {
+        openModal('modal-task');
       }
-      updateTaskScheduleSectionState(taskStatus, taskEstimator);
-      updateTaskStatusDropdownPermissions(taskStatus, taskAssignees);
-      updateTaskModalHeaderAndFooterActions(taskStatus, taskEstimator, taskAssignees);
-      updateTaskBasicFieldsPermissions();
-      openModal('modal-task');
       setTimeout(() => {
         const bodyTitleInput = document.getElementById('form-task-title-input');
         if (bodyTitleInput && !taskId) bodyTitleInput.focus();
