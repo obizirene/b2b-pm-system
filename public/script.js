@@ -4237,36 +4237,17 @@
       const task = state.tasks.find(t => t.id === taskId);
       if (!task) {
         userSelect.innerHTML = '<option value="">-- 未知任務 --</option>';
-        return;
-      }
-
-      const assignees = getTaskAssignees(task);
-      // 僅限被指派的執行人員才可以選擇填報工時（若尚未指派執行人但有評估人則帶入評估人）
-      const eligibleUsers = assignees.length > 0 
-        ? Array.from(new Set(assignees)).filter(Boolean)
-        : (task.estimator ? [task.estimator] : []);
-
-      if (eligibleUsers.length === 0) {
-        userSelect.innerHTML = '<option value="">⚠️ 此任務尚未指派任何執行人員</option>';
-        return;
-      }
-
-      userSelect.innerHTML = eligibleUsers.map(u => {
-        const m = state.members.find(mem => mem.name === u || u.includes(mem.name) || mem.name.includes(u));
+    function updateWorkLogUserDropdown(taskId, preferredUser = null) {
+      const activeUserName = getCurrentUserName();
+      const hiddenInput = document.getElementById('form-worklog-user');
+      const displayEl = document.getElementById('form-worklog-user-display');
+      
+      const targetUser = preferredUser || activeUserName;
+      if (hiddenInput) hiddenInput.value = targetUser;
+      if (displayEl) {
+        const m = state.members.find(mem => mem.name === targetUser || targetUser.includes(mem.name) || mem.name.includes(targetUser));
         const roleStr = m ? ` (${m.role})` : '';
-        return `<option value="${u}">${u}${roleStr}</option>`;
-      }).join('');
-
-      if (preferredUser && eligibleUsers.some(u => u === preferredUser || u.includes(preferredUser) || preferredUser.includes(u))) {
-        const matched = eligibleUsers.find(u => u === preferredUser || u.includes(preferredUser) || preferredUser.includes(u));
-        userSelect.value = matched;
-      } else {
-        const currentMatch = eligibleUsers.find(u => checkSingleMemberMatchesCurrentUser(u));
-        if (currentMatch) {
-          userSelect.value = currentMatch;
-        } else {
-          userSelect.value = eligibleUsers[0];
-        }
+        displayEl.innerText = `${targetUser}${roleStr}`;
       }
     }
 
@@ -4283,9 +4264,6 @@
       const taskSelect = document.getElementById('form-worklog-task');
       const isManager = isCurrentRoleManager();
 
-      // Only show tasks of the active project and exclude '規劃中' (Planning)
-      // Requirement 1 & 3:
-      // Non-managers only see tasks where they are an assigned execution member
       let pTasks = state.tasks.filter(t => t.projectId === currP.id && t.status !== '規劃中');
       if (!isManager) {
         pTasks = pTasks.filter(t => checkIsTaskAssignee(t));
@@ -4321,8 +4299,10 @@
       const taskId = document.getElementById('form-worklog-task').value;
       const date = document.getElementById('form-worklog-date').value;
       const hours = Number(document.getElementById('form-worklog-hours').value) || 0;
-      const userSelect = document.getElementById('form-worklog-user');
-      const userName = (userSelect ? userSelect.value : '').trim();
+      
+      const activeUserName = getCurrentUserName();
+      const hiddenInputVal = document.getElementById('form-worklog-user')?.value;
+      const userName = (hiddenInputVal || activeUserName || '').trim();
       const notes = document.getElementById('form-worklog-notes').value.trim();
 
       if (!taskId) {
@@ -4337,7 +4317,7 @@
       }
 
       if (!userName) {
-        alert('請選擇填報人員！若無可選人員，請先至任務編輯指派執行人員。');
+        alert('無法取得填報人員姓名！請確認目前登入狀態。');
         return;
       }
 
@@ -4346,15 +4326,15 @@
         return;
       }
 
-      // 權限檢查：只有被指派的執行人員（或主管）才可以填報工時
+      // 權限檢查：只有此任務指派之執行人員（或主管）才能記錄個人工時
       const isManager = isCurrentRoleManager();
       const assignees = getTaskAssignees(task);
       const isUserAssigned = assignees.length > 0
-        ? assignees.some(u => u === userName || u.includes(userName) || userName.includes(u))
-        : (task.estimator && (task.estimator === userName || task.estimator.includes(userName) || userName.includes(task.estimator)));
+        ? assignees.some(u => checkSingleMemberMatchesCurrentUser(u) || u === userName || u.includes(userName) || userName.includes(u))
+        : (task.estimator && (checkSingleMemberMatchesCurrentUser(task.estimator) || task.estimator === userName || task.estimator.includes(userName) || userName.includes(task.estimator)));
 
       if (!isUserAssigned && !isManager) {
-        alert('⚠️ 權限不足：您所選的填報人員非此任務指派之執行人員，無法記錄工時！');
+        alert(`⚠️ 權限不足：您（${userName}）非此任務指派之執行人員，無法記錄工時！`);
         return;
       }
 
