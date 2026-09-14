@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>B2B 專案管理與工時追蹤整合系統 (B2B PM System & ProjectFlow Combined)</title>
+  <script>
+    if (window.location.protocol !== 'file:') {
+      const b = document.createElement('base');
+      b.href = '/';
+      document.head.appendChild(b);
+    }
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Sidebar Navigation (2-Tier & Collapsible) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <div class="logo-icon">PM</div>
+        <div class="sidebar-hide-on-collapse">
+          <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">B2B 專案管理系統</div>
+        </div>
+      </div>
+      <button class="sidebar-toggle-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="收合 / 展開側邊欄">
+        ◀
+      </button>
+    </div>
+    
+    <nav class="nav-menu">
+      <!-- ================= TIER 1: 全局總覽、內部管理與專案清單 ================= -->
+      <div id="sidebar-tier-1">
+        <button class="nav-btn active" id="nav-btn-dashboard" onclick="navTo('dashboard', this)" title="專案總覽" style="margin-top: 8px;">
+          <span>📊</span>
+          <span class="sidebar-hide-on-collapse">專案總覽</span>
+        </button>
+
+        <!-- 內部管理 -->
+        <div class="nav-section-title sidebar-hide-on-collapse" id="nav-section-internal" style="margin-top:10px;">內部管理</div>
+        <button class="nav-btn" id="nav-btn-members" onclick="navTo('members', this)" title="員工管理">
+          <span>👥</span>
+          <span class="sidebar-hide-on-collapse">員工管理</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="badge-members-count">6</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-roles" onclick="navTo('roles', this)" title="角色管理">
+          <span>🛡️</span>
+          <span class="sidebar-hide-on-collapse">角色管理</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="badge-roles-count">6</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-clients" onclick="navTo('clients', this)" title="客戶管理">
+          <span>🏢</span>
+          <span class="sidebar-hide-on-collapse">客戶管理</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="badge-clients-count">2</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-holidays" onclick="navTo('holidays', this)" title="國定假日設定">
+          <span>📅</span>
+          <span class="sidebar-hide-on-collapse">國定假日設定</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="badge-holidays-count">0</span>
+        </button>
+
+        <!-- 專案管理 -->
+        <div class="nav-section-title sidebar-hide-on-collapse" id="nav-section-project" style="margin-top:10px;">專案管理</div>
+        <button class="nav-btn" id="nav-btn-projects" onclick="navTo('projects', this)" title="所有專案管理">
+          <span>📁</span>
+          <span class="sidebar-hide-on-collapse">所有專案總表</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="badge-projects-count">2</span>
+        </button>
+
+        <!-- Searchable Dropdown for Projects in Tier 1 (取代逐筆卡片) -->
+        <div class="sidebar-proj-select-wrap sidebar-hide-on-collapse" id="sidebar-project-quick-list">
+          <div class="sidebar-proj-search-box">
+            <input 
+              type="text" 
+              id="sidebar-project-search-input" 
+              class="sidebar-proj-search-input" 
+              placeholder="🔍 選擇/搜尋專案進入..." 
+              autocomplete="off"
+              onfocus="openSidebarProjectDropdown(); this.select();"
+              oninput="onSidebarProjectSearchInput(this.value)"
+              onclick="openSidebarProjectDropdown(); this.select();"
+              onkeydown="handleSidebarProjectSearchKey(event)"
+            />
+            <button id="sidebar-project-search-clear" class="sidebar-proj-clear" type="button" onclick="clearSidebarProjectSearch(event)">✕</button>
+            <span id="sidebar-project-search-arrow" class="sidebar-proj-arrow" onclick="toggleSidebarProjectDropdown(event)">▾</span>
+          </div>
+
+          <div id="sidebar-project-dropdown" class="sidebar-proj-dropdown-panel" style="display:none;">
+            <div id="sidebar-project-dropdown-items">
+              <!-- Dynamically populated options -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TIER 2: 專案專屬排程與追蹤 ================= -->
+      <div id="sidebar-tier-2" style="display:none;">
+        <!-- Left-top Back Button to Tier 1 -->
+        <div class="sidebar-back-box">
+          <button class="back-btn" onclick="exitProjectTier()" title="點擊返回上一層">
+            <span style="font-size:16px; font-weight:900;">←</span>
+            <span class="sidebar-hide-on-collapse">返回上一層 (總覽/內部管理)</span>
+          </button>
+        </div>
+
+        <!-- Active Project Card in Tier 2 -->
+        <div class="tier2-proj-badge-card sidebar-hide-on-collapse">
+          <div style="font-size:10px; font-weight:800; color:#38bdf8; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
+            <span>目前操作專案</span>
+            <span style="color:#10b981;">● 已進入工作區</span>
+          </div>
+          <div id="tier2-proj-code" style="font-size:11px; font-family:monospace; color:#38bdf8; font-weight:700; margin-top:3px;">POC-2609-BB-02</div>
+          <div id="tier2-proj-title" style="font-size:13px; font-weight:800; color:white; line-height:1.3; margin-top:2px;">BB專案</div>
+          <div id="tier2-proj-client" style="font-size:11px; color:#94a3b8; margin-top:2px;">所屬客戶: BBB</div>
+          
+          <select id="tier2-project-select" class="project-switcher-select" style="margin-top:8px;" onchange="enterProjectTier(this.value)">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <!-- Project Specific Modules in Tier 2 -->
+        <div class="nav-section-title sidebar-hide-on-collapse" id="nav-section-tier2">專案排程與追蹤</div>
+        
+        <button class="nav-btn" id="nav-btn-gantt" onclick="navTo('gantt', this)" title="甘特排程">
+          <span>📅</span>
+          <span class="sidebar-hide-on-collapse">甘特排程</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-worklogs" onclick="navTo('worklogs', this)" title="工時日誌">
+          <span>⏱️</span>
+          <span class="sidebar-hide-on-collapse">工時日誌</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="tier2-badge-worklogs">3</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-tasks" onclick="navTo('tasks', this)" title="任務追蹤">
+          <span>📋</span>
+          <span class="sidebar-hide-on-collapse">任務追蹤</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="tier2-badge-tasks">6</span>
+        </button>
+        <button class="nav-btn" id="nav-btn-issues" onclick="navTo('issues', this)" title="問題與測試追蹤">
+          <span>🐞</span>
+          <span class="sidebar-hide-on-collapse">問題與測試追蹤</span>
+          <span class="count-pill sidebar-hide-on-collapse" id="tier2-badge-issues">2</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Hidden Backup Input -->
+    <input type="file" id="json-file-input" style="display:none;" onchange="importJSONBackup(event)">
+
+    <div id="sidebar-user-block" style="padding: 14px 16px; border-top: 1px solid #1e293b; font-size: 12px; background: rgba(15,23,42,0.6);">
+      <div style="font-weight: 700; color: white;">載入身分中...</div>
+      <div style="color: #10b981; font-size: 11px; margin-top: 2px;" id="firebase-status-badge">● Firebase Online (已即時連線)</div>
+    </div>
+  </aside>
+
+  <!-- Main Wrapper -->
+  <div class="main-wrapper">
+    <header class="top-header">
+      <div style="font-weight: 800; font-size: 15px; color: var(--slate-800);">B2B 企業專案管理與甘特排程系統</div>
+      
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <!-- Role Simulator Quick Switch -->
+        <div style="display: flex; align-items: center; gap: 8px; background: #f1f5f9; padding: 4px 10px; border-radius: 8px; border: 1px solid #cbd5e1;">
+          <label style="font-size: 11px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="checkbox" id="header-simulator-toggle" checked onchange="toggleRoleSimulator(this.checked)">
+            <span>測試角色切換</span>
+          </label>
+          <select id="header-role-simulator-select" onchange="onRoleSimulatorChange(this.value)" style="font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; color: #1e293b; outline: none;">
+            <option value="self">本人身分 (自動偵測) irene [已驗證]</option>
+            <option value="role-pm">專案經理 (PM)</option>
+            <option value="role-dev">全端工程師</option>
+            <option value="role-ui">UI/UX 設計師</option>
+            <option value="role-qa">QA 測試工程師</option>
+            <option value="role-client">客戶窗口</option>
+            <option value="role-admin">系統管理員</option>
+          </select>
+        </div>
+
+        <div id="header-user-badge"></div>
+        <span style="font-size: 12px; color: var(--slate-600); font-family: monospace;">今日: 2026-09-09</span>
+        <span class="badge badge-success">系統正常</span>
+      </div>
+    </header>
+
+    <main class="content-area">
+
+      <!-- ================= 1. DASHBOARD PAGE ================= -->
+      <div id="page-dashboard">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">專案總覽</h1>
+            <p class="page-subtitle">即時監控主專案進度、累計填報工時、預估對比與延誤預警看板</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-project-dash" onclick="openProjectModal()">+ 新增主專案</button>
+        </div>
+
+        <div class="delay-alert" id="dashboard-delay-banner" style="display:none; background:#ffe4e6; border:1px solid #fecdd3; padding:12px 16px; border-radius:8px; margin-bottom:16px;"></div>
+
+        <div class="grid-6">
+          <div class="metric-card" onclick="navTo('clients')">
+            <div class="metric-title">合作客戶數</div>
+            <div class="metric-num" id="kpi-clients">2</div>
+          </div>
+          <div class="metric-card" onclick="navTo('members')">
+            <div class="metric-title">團隊總員工數</div>
+            <div class="metric-num" style="color: var(--purple);" id="kpi-members">6</div>
+          </div>
+          <div class="metric-card" onclick="navTo('projects')">
+            <div class="metric-title">進行中主專案</div>
+            <div class="metric-num" id="kpi-projects">2</div>
+          </div>
+          <div class="metric-card" onclick="navTo('projects')">
+            <div class="metric-title">進度延誤專案數</div>
+            <div class="metric-num" style="color: var(--danger);" id="kpi-delayed">0</div>
+          </div>
+          <div class="metric-card" onclick="navTo('issues')">
+            <div class="metric-title">Critical Bug 數</div>
+            <div class="metric-num" style="color: var(--warning);" id="kpi-bugs">0</div>
+          </div>
+          <div class="metric-card" onclick="navTo('worklogs')">
+            <div class="metric-title">累積總累積工時</div>
+            <div class="metric-num" style="color: var(--primary);" id="kpi-worklogs-hours">25.5h</div>
+          </div>
+        </div>
+
+        <div class="page-title-row" style="margin-bottom: 16px;">
+          <h2 style="font-size: 16px; font-weight: 800;">主專案進度與團隊陣容</h2>
+        </div>
+        <div class="grid-2" id="dashboard-project-cards"></div>
+      </div>
+
+      <!-- ================= 2. MEMBERS PAGE (內部管理 - 員工管理) ================= -->
+      <div id="page-members" style="display: none;">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">員工管理 (Member Management)</h1>
+            <p class="page-subtitle">建立員工帳號、身份、重新設定密碼、指派各功能權限力矩陣</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-member" onclick="openMemberModal()">+ 新增員工 / 成員</button>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>員工姓名</th>
+                <th>職務角色 / 權限</th>
+                <th>聯絡 EMAIL</th>
+                <th>聯絡電話</th>
+                <th>運作專案</th>
+                <th style="text-align: right;">操作項目</th>
+              </tr>
+            </thead>
+            <tbody id="members-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 3. ROLES PAGE (內部管理 - 角色管理) ================= -->
+      <div id="page-roles" style="display: none;">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">角色與權限管理</h1>
+            <p class="page-subtitle">自訂角色與功能權限矩陣 Matrix，支援角色權限模擬體驗與動態控管</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-role" onclick="openRoleMatrixModal()">+ 新增自訂角色</button>
+        </div>
+
+        <!-- Role Simulator Banner -->
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <div style="font-weight: 800; color: #15803d; font-size: 13px; display:flex; align-items:center; gap:6px;">
+              <span>⚡ 切換測試角色 UI 模擬器 (Role Simulator)</span>
+            </div>
+            <div style="font-size: 12px; color: #166534; margin-top: 2px;">選擇角色立即體驗專屬權限視角，角色切換後整體動態權限將即時生效。</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 700; color: #166534;">模擬身分:</span>
+            <select id="roles-page-simulator-select" class="form-select" style="width: 220px; padding: 6px 10px; font-weight: 700;" onchange="onRoleSimulatorChange(this.value)">
+              <option value="self">本人身分 (全端 PM / 登入身份)</option>
+              <option value="role-pm">專案經理 (PM)</option>
+              <option value="role-dev">全端工程師</option>
+              <option value="role-ui">UI/UX 設計師</option>
+              <option value="role-qa">QA 測試工程師</option>
+              <option value="role-client">客戶窗口</option>
+              <option value="role-admin">系統管理員</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>角色名稱</th>
+                <th>角色權限說明</th>
+                <th>角色指派與職責</th>
+                <th>已授權模組矩陣</th>
+                <th style="text-align: right;">操作矩陣 Matrix 變更</th>
+              </tr>
+            </thead>
+            <tbody id="roles-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 4. CLIENTS PAGE (內部管理 - 客戶管理) ================= -->
+      <div id="page-clients" style="display: none;">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">客戶管理</h1>
+            <p class="page-subtitle">維護 B2B 客戶公司資料、客戶統編與主要對接窗口</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-client" onclick="openClientModal()">+ 新增客戶</button>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>客戶代碼與公司名稱</th>
+                <th>對接窗口</th>
+                <th>聯絡 EMAIL</th>
+                <th>聯絡電話</th>
+                <th style="text-align: right;">操作項目</th>
+              </tr>
+            </thead>
+            <tbody id="clients-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 4.1 HOLIDAYS PAGE (內部管理 - 國定假日設定) ================= -->
+      <div id="page-holidays" style="display: none;">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">國定假日與上班日設定</h1>
+            <p class="page-subtitle">維護行政院國定假日、彈性連假與補上班日，系統將自動以此計算專案排程之實際工作天數 (上班日)。</p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px; background: white; padding: 4px 10px; border-radius: 8px; border: 1px solid #cbd5e1;">
+              <span style="font-size: 12px; font-weight: 700; color: #475569;">年份篩選:</span>
+              <select id="holiday-year-filter" class="form-select" onchange="renderHolidaysTable()" style="border: none; outline: none; font-size: 13px; font-weight: 700; color: #1e293b; background: transparent; cursor: pointer; padding: 2px 4px;">
+                <option value="all">全部年份</option>
+                <option value="2025">2025 年 (民國114年)</option>
+                <option value="2026" selected>2026 年 (民國115年)</option>
+                <option value="2027">2027 年 (民國116年)</option>
+              </select>
+            </div>
+            <button class="btn btn-secondary" onclick="resetTaiwanOfficialHolidays()" title="重新載入行政院 2025~2027 官方國定假日與補班日">📥 帶入/重設行政院國定假日</button>
+            <button class="btn btn-primary" onclick="openHolidayModal()">+ 新增假日 / 補班日</button>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>日期 (星期)</th>
+                <th>節日 / 休假名稱</th>
+                <th>類型分類</th>
+                <th>出勤性質 (工作日計算)</th>
+                <th>備註說明</th>
+                <th style="text-align: right;">操作項目</th>
+              </tr>
+            </thead>
+            <tbody id="holidays-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 5. PROJECTS PAGE (專案管理 - 專案管理) ================= -->
+      <div id="page-projects" style="display: none;">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">專案管理</h1>
+            <p class="page-subtitle">管理所有主專案、分派目標完工日、點選可切換為當前操作專案</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-project-table" onclick="openProjectModal()">+ 建立主專案</button>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>專案編號與名稱</th>
+                <th>所屬客戶</th>
+                <th>專案團隊成員</th>
+                <th>預估 vs 實際工時</th>
+                <th>完工日</th>
+                <th>狀態</th>
+                <th style="text-align: right;">操作項目</th>
+              </tr>
+            </thead>
+            <tbody id="projects-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 6. GANTT CHART PAGE (專案管理 - 甘特排程) ================= -->
+      <div id="page-gantt" style="display: none;">
+        <!-- Active Project Banner -->
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">甘特圖排程 (Gantt Chart)</h1>
+            <p class="page-subtitle">點擊各層級可收合/展開。橫條上方拖曳兩側邊緣可調整排程。</p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn btn-primary" id="btn-gantt-add-phase" onclick="inlineAddPhase()">+ 新增階段 (第一層)</button>
+            <button class="btn btn-secondary" id="btn-gantt-export" onclick="exportExcelReports()">📤 匯出甘特排程 CSV</button>
+          </div>
+        </div>
+
+        <div class="table-card" style="margin-bottom: 12px; padding: 8px 16px; display: flex; justify-content: flex-end; align-items: center; font-size: 12px; flex-wrap:wrap; gap:10px; flex-shrink: 0;">
+          <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+            <div style="display: inline-flex; align-items: center; background: #e2e8f0; padding: 2px; border-radius: 6px; gap: 2px;" id="gantt-scale-switcher" title="切換甘特圖時間刻度">
+              <button class="gantt-scale-btn" id="btn-scale-year" onclick="setGanttScale('year')">年</button>
+              <button class="gantt-scale-btn" id="btn-scale-quarter" onclick="setGanttScale('quarter')">季</button>
+              <button class="gantt-scale-btn" id="btn-scale-month" onclick="setGanttScale('month')">月</button>
+              <button class="gantt-scale-btn" id="btn-scale-week" onclick="setGanttScale('week')">週</button>
+              <button class="gantt-scale-btn active" id="btn-scale-day" onclick="setGanttScale('day')">日</button>
+            </div>
+            <div style="font-family: monospace; color: var(--slate-600); font-size: 11px;" id="gantt-range-label"></div>
+          </div>
+        </div>
+
+        <div class="gantt-wrapper">
+          <!-- 1. Fixed Top Header Row (Left Tree Header + Right Month/Day Header) -->
+          <div class="gantt-header-row">
+            <div class="gantt-left-header">
+              <span>專案結構清單 (Phase / Module / Task)</span>
+              <button class="btn btn-primary btn-xs" id="btn-gantt-inline-add-phase" style="font-weight:800; padding:3px 8px;" title="新增第一層階段" onclick="inlineAddPhase()">+ 新增階段</button>
+            </div>
+            <div class="gantt-right-header-container" id="gantt-right-header-container">
+              <div id="gantt-header-svg-wrap"></div>
+            </div>
+          </div>
+
+          <!-- 2. Scrollable Body Row (Left Tree Rows + Right Timeline Bars) -->
+          <div class="gantt-body-row" id="gantt-body-row">
+            <div class="gantt-left-body" id="gantt-left-body">
+              <div id="gantt-left-rows"></div>
+            </div>
+            <div class="gantt-right-timeline" id="gantt-timeline-container"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 7. WORK LOGS PAGE (專案管理 - 工時日誌) ================= -->
+      <div id="page-worklogs" style="display: none;">
+        <!-- Active Project Banner -->
+        <div class="active-project-banner">
+          <div class="active-project-info">
+            <span class="active-project-title" id="worklogs-banner-title">載入中...</span>
+            <span class="active-project-client" id="worklogs-banner-client"></span>
+          </div>
+        </div>
+
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">工時日誌</h1>
+            <p class="page-subtitle">每日填報工時清單: 工作內容備註、任務實際工時自動累計到人員統計</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-worklog" onclick="openWorkLogModal()">+ 填報工時日誌 (Log Work)</button>
+        </div>
+
+        <!-- Member Work Hours Summary Card -->
+        <div class="card" style="margin-bottom: 24px;">
+          <h3 style="font-size: 15px; font-weight: 800; margin-bottom: 12px;">成員工時統計總覽</h3>
+          <div id="member-hours-summary-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;"></div>
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>對應任務與所屬專案</th>
+                <th>填報人員 MEMBER</th>
+                <th>投入工時 (HOURS)</th>
+                <th>工作說明與備註 NOTES</th>
+                <th style="text-align: right;">操作項目</th>
+              </tr>
+            </thead>
+            <tbody id="worklogs-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= 8. TASKS PAGE (專案管理 - 任務追蹤) ================= -->
+      <div id="page-tasks" style="display: none;">
+        <!-- Active Project Banner -->
+        <div class="active-project-banner">
+          <div class="active-project-info">
+            <span class="active-project-title" id="tasks-banner-title">載入中...</span>
+            <span class="active-project-client" id="tasks-banner-client"></span>
+          </div>
+        </div>
+
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">任務與議題</h1>
+            <p class="page-subtitle">整合目前排程，系統整合: Bug 修正與需求變更 (CR)，以頁籤與 Tag 標籤統一管理</p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary" id="btn-tasks-export" onclick="exportExcelReports()">📤 匯出 CSV 報表</button>
+            <button class="btn btn-primary" id="btn-add-task" onclick="openTaskModal()">+ 新增任務 / 議題</button>
+          </div>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap;">
+          <input type="text" id="tasks-search-input" class="form-input" placeholder="🔍 搜尋任務、框架、人員或註記..." style="width: 320px;" oninput="renderTasksTable()">
+        </div>
+
+        <!-- Task Type Tabs Bar -->
+        <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; flex-wrap: wrap;">
+          <button class="tab-btn active-tab" onclick="setTaskFilter('all', this)">
+            全份任務與議題 <span class="badge badge-purple" id="tab-cnt-all">6</span>
+          </button>
+          <button class="tab-btn" onclick="setTaskFilter('功能', this)">
+            🌟 功能開發 <span class="badge badge-info" id="tab-cnt-feature">5</span>
+          </button>
+          <button class="tab-btn" onclick="setTaskFilter('優化', this)">
+            ⚡ 系統優化 <span class="badge badge-info" id="tab-cnt-opt">0</span>
+          </button>
+          <button class="tab-btn" onclick="setTaskFilter('Bug', this)">
+            🐛 Bug 瑕疵 <span class="badge badge-danger" id="tab-cnt-bug">0</span>
+          </button>
+          <button class="tab-btn" onclick="setTaskFilter('需求變更', this)">
+            📝 需求變更 (CR) <span class="badge badge-warning" id="tab-cnt-cr">0</span>
+          </button>
+        </div>
+
+        <!-- Hierarchical Phase -> Module -> Task Groups Container -->
+        <div id="tasks-hierarchical-container" style="display: flex; flex-direction: column; gap: 18px;"></div>
+      </div>
+
+      <!-- ================= 9. ISSUES PAGE (專案管理 - 問題與測試追蹤) ================= -->
+      <div id="page-issues" style="display: none;">
+        <!-- Active Project Banner -->
+        <div class="active-project-banner">
+          <div class="active-project-info">
+            <span class="active-project-title" id="issues-banner-title">載入中...</span>
+            <span class="active-project-client" id="issues-banner-client"></span>
+          </div>
+        </div>
+
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">問題與測試追蹤</h1>
+            <p class="page-subtitle">獨立提出與修復專案測試之 Bug 瑕疵、測試對話記錄、搜集與回覆</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-issue" onclick="openIssueModal()">+ 提報問題 / 測試記錄</button>
+        </div>
+
+        <!-- Search Bar -->
+        <div style="display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+          <input type="text" id="issues-search-input" class="form-input" placeholder="🔍 搜尋專案、對話記錄、提問內容..." style="width: 320px;" oninput="renderIssuesTable()">
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>提報日期</th>
+                <th>追蹤類型</th>
+                <th>問題 / 測試標題</th>
+                <th>所屬專案</th>
+                <th>負責人員</th>
+                <th>處理狀態</th>
+                <th>預計交付</th>
+                <th style="text-align: right;">操作項目與備註內容</th>
+              </tr>
+            </thead>
+            <tbody id="issues-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- 1. Member Modal -->
+  <div class="modal-overlay" id="modal-member" onclick="handleOverlayClick(event, 'modal-member')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-member-title">新增團隊員工 / 成員</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-member')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-member-id">
+        <div class="form-group">
+          <label class="form-label">員工姓名 *</label>
+          <input type="text" id="form-member-name" class="form-input" placeholder="例如: 謝技術主管 (John Hsieh)">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">職務角色 / 職稱 *</label>
+            <select id="form-member-role" class="form-select">
+              <option value="專案經理 (PM)">專案經理 (PM)</option>
+              <option value="全端工程師">全端工程師</option>
+              <option value="UI/UX 設計師">UI/UX 設計師</option>
+              <option value="QA 測試工程師">QA 測試工程師</option>
+              <option value="客戶窗口">客戶窗口</option>
+              <option value="系統管理員">系統管理員</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">聯絡電話</label>
+            <input type="text" id="form-member-phone" class="form-input" placeholder="+886 912-345-678">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">登入 Gmail / 授權 Email *</label>
+          <input type="email" id="form-member-email" class="form-input" placeholder="user@company.com">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-member')">取消</button>
+        <button class="btn btn-primary" onclick="saveMember()">儲存成員資料</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Client Modal -->
+  <div class="modal-overlay" id="modal-client" onclick="handleOverlayClick(event, 'modal-client')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-client-title">新增客戶資料</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-client')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-client-id">
+        <div class="form-group">
+          <label class="form-label">客戶公司名稱 *</label>
+          <input type="text" id="form-client-name" class="form-input" placeholder="例如: 奧斯企業">
+        </div>
+        <div class="form-group">
+          <label class="form-label">客戶統編 *</label>
+          <input type="text" id="form-client-code" class="form-input" placeholder="例如: 24578937">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">對接窗口 *</label>
+            <input type="text" id="form-client-contact" class="form-input" placeholder="例如: 陳專員">
+          </div>
+          <div class="form-group">
+            <label class="form-label">聯絡 Email *</label>
+            <input type="email" id="form-client-email" class="form-input" placeholder="contact@company.com">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">聯絡電話</label>
+          <input type="text" id="form-client-phone" class="form-input" placeholder="+886 2-1234-5678">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-client')">取消</button>
+        <button class="btn btn-primary" onclick="saveClient()">儲存客戶資料</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Project Modal (新增/編輯主專案) -->
+  <div class="modal-overlay" id="modal-project" onclick="handleOverlayClick(event, 'modal-project')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-project-title">新增主專案</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-project')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-project-id">
+        <div class="form-group">
+          <label class="form-label">主專案名稱 *</label>
+          <input type="text" id="form-project-name" class="form-input" placeholder="例如: 新一代 B2B 電商門戶網站系統">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">專案類型 *</label>
+            <select id="form-project-type" class="form-select">
+              <option value="外部專案 (EXT)">外部專案 (EXT)</option>
+              <option value="內部專案 (INT)">內部專案 (INT)</option>
+              <option value="概念驗證 (POC)">概念驗證 (POC)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">所屬客戶 *</label>
+            <select id="form-project-client" class="form-select"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">專案編號 (規格: 年份-客戶簡寫-序號) *</label>
+          <input type="text" id="form-project-code" class="form-input" placeholder="PROJ-03">
+        </div>
+        <div class="form-group">
+          <label class="form-label">專案團隊成員 (Team Members) *</label>
+          <div id="form-project-members-checkboxes" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #cbd5e1; max-height:140px; overflow-y:auto;"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">專案簡介與說明</label>
+          <textarea id="form-project-desc" class="form-textarea" rows="2" placeholder="簡述專案目標與涵蓋範圍..."></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">開工日期 *</label>
+            <input type="date" id="form-project-start" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">預計完工日 *</label>
+            <input type="date" id="form-project-end" class="form-input">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">專案狀態</label>
+          <select id="form-project-status" class="form-select">
+            <option value="進行中">進行中</option>
+            <option value="規劃中">規劃中</option>
+            <option value="已完工">已完工</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-project')">取消</button>
+        <button class="btn btn-primary" onclick="saveProject()">儲存主專案</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Role Matrix Modal (新增/編輯自訂角色權限 Matrix) -->
+  <div class="modal-overlay" id="modal-role-matrix" onclick="handleOverlayClick(event, 'modal-role-matrix')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-role-matrix-title">新增自訂角色權限 Matrix</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-role-matrix')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-role-id">
+        <div id="modal-role-admin-banner" style="display:none; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; margin-bottom:14px; color:#1e40af; font-size:12px; font-weight:700;">
+          🛡️「系統管理員」為全系統最高管理員，已開啟所有 36 項功能模組權限（全開且不可關閉，不可刪除）。
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">角色名稱 *</label>
+            <input type="text" id="form-role-name" class="form-input" placeholder="例如: 助理工程師">
+          </div>
+          <div class="form-group">
+            <label class="form-label">角色權限說明</label>
+            <input type="text" id="form-role-desc" class="form-input" placeholder="例如: 負責全專案排程控管、成員指派...">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label class="form-label">角色指派與職責</label>
+          <input type="text" id="form-role-resp" class="form-input" placeholder="例如: 專案建立與里程碑、工時簽核、全功能權限無受限...">
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+          <h4 style="font-size: 13px; font-weight: 800; color: #1e293b;">模組細部權限 Matrix 設定:</h4>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary btn-xs" onclick="toggleAllMatrixCheckboxes(true)">全部勾選</button>
+            <button class="btn btn-secondary btn-xs" onclick="toggleAllMatrixCheckboxes(false)">全部清空</button>
+          </div>
+        </div>
+
+        <!-- Matrix Permissions Sections -->
+        <div id="role-matrix-scroll-body" style="display: flex; flex-direction: column; gap: 14px; max-height: 420px; overflow-y: auto; padding-right: 4px;">
+          
+          <!-- 專案總覽 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">📊 專案總覽</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('dashboard', true)">全選</button>
+            </div>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+              <input type="checkbox" class="matrix-chk" data-group="dashboard" value="dashboard_view" checked>
+              <span>檢視總覽 KPI (view)</span>
+            </label>
+          </div>
+
+          <!-- 內部管理 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">📁 內部管理</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('internal', true)">全選</button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div>
+                <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:4px;">👥 員工管理</div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="member_view" checked> 檢視列表 (view)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="member_create" checked> 新增員工 (create)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="member_edit" checked> 編輯員工 (edit)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="member_delete" checked> 刪除員工 (delete)</label>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:4px;">🛡️ 角色與權限管理</div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="role_view" checked> 檢視列表 (view)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="role_edit" checked> 編輯權限 Matrix (edit)</label>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:4px;">🏢 客戶管理</div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="client_view" checked> 檢視列表 (view)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="client_create" checked> 新增客戶 (create)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="client_edit" checked> 編輯客戶 (edit)</label>
+                  <label><input type="checkbox" class="matrix-chk" data-group="internal" value="client_delete" checked> 刪除客戶 (delete)</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 專案管理 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">📁 專案管理</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('project_manage', true)">全選</button>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label><input type="checkbox" class="matrix-chk" data-group="project_manage" value="proj_view" checked> 檢視列表 (view)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="project_manage" value="proj_create" checked> 新增主專案 (create)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="project_manage" value="proj_edit" checked> 編輯專案 (edit)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="project_manage" value="proj_delete" checked> 刪除專案 (delete)</label>
+            </div>
+          </div>
+
+          <!-- 甘特排程 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">📈 甘特排程</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('gantt_manage', true)">全選</button>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_view" checked> 檢視甘特圖 (view)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_add_phase" checked> 新增階段 (add_phase)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_add_task" checked> 新增模組與任務 (add_module_task)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_drag" checked> 拖曳調整日期 (drag_adjust)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_delete" checked> 刪除項目 (delete)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="gantt_manage" value="gantt_export" checked> 匯出 CSV (export_csv)</label>
+            </div>
+          </div>
+
+          <!-- 工時日誌 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">⏱️ 工時日誌</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('worklog_manage', true)">全選</button>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label><input type="checkbox" class="matrix-chk" data-group="worklog_manage" value="worklog_view" checked> 檢視列表 (view)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="worklog_manage" value="worklog_create" checked> 填報工時 (create)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="worklog_manage" value="worklog_edit" checked> 編輯工時 (edit)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="worklog_manage" value="worklog_delete" checked> 刪除工時 (delete)</label>
+            </div>
+          </div>
+
+          <!-- 任務追蹤 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">📋 任務追蹤</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('task_manage', true)">全選</button>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label><input type="checkbox" class="matrix-chk" data-group="task_manage" value="task_view" checked> 檢視列表 (view)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="task_manage" value="task_create" checked> 新增任務 (create)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="task_manage" value="task_edit" checked> 編輯任務 (edit)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="task_manage" value="task_schedule_edit" checked> 編輯預估排程與工時 (schedule_edit)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="task_manage" value="task_complete_permission" checked> 審核驗收/切換已完成 (complete_verify)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="task_manage" value="task_delete" checked> 刪除任務 (delete)</label>
+            </div>
+          </div>
+
+          <!-- 問題與測試追蹤 -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:700; color:#1e3a8a;">🐞 問題與測試追蹤</span>
+              <button class="btn btn-secondary btn-xs" onclick="toggleGroupMatrix('issue_manage', true)">全選</button>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label><input type="checkbox" class="matrix-chk" data-group="issue_manage" value="issue_view" checked> 檢視列表 (view)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="issue_manage" value="issue_create" checked> 提報問題與測試 (create)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="issue_manage" value="issue_edit" checked> 編輯記錄 (edit)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="issue_manage" value="issue_delete" checked> 刪除記錄 (delete)</label>
+              <label><input type="checkbox" class="matrix-chk" data-group="issue_manage" value="issue_comment" checked> 檢視與發表回覆 (comment)</label>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <button type="button" class="btn btn-danger-outline btn-sm" id="modal-role-delete-btn" style="display:none;" onclick="onModalDeleteCurrentRole()">🗑️ 刪除此角色</button>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary" onclick="closeModal('modal-role-matrix')">取消</button>
+          <button class="btn btn-primary" onclick="saveRoleMatrix()">儲存授權權限矩陣</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Task Modal (新增/編輯任務/排程項目) -->
+  <div class="modal-overlay" id="modal-task" onclick="handleOverlayClick(event, 'modal-task')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0; margin-right:12px;">
+          <div class="modal-title" id="modal-task-title-wrapper" style="flex:1; min-width:0;">
+            <span class="task-modal-title-editable" id="modal-task-title" onclick="startModalTaskTitleEdit(event)" title="點擊直接編輯項目名稱">
+              <span id="modal-task-title-text">新增任務 / 排程項目</span>
+            </span>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-task')" style="flex-shrink:0;">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-task-id">
+        <div class="form-group">
+          <label class="form-label">所屬主專案 *</label>
+          <select id="form-task-project" class="form-select" onchange="onTaskProjectSelectChanged(this.value)"></select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">第一階: 階段 (Phase) *</label>
+            <select id="form-task-phase" class="form-select" onchange="onTaskPhaseSelectChanged(this.value)"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">第二階: 功能大項 (Module) *</label>
+            <select id="form-task-module" class="form-select" onchange="updateModalTaskAutoWBS()"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">第三階: 任務 / 議題名稱 (Task Title) *</label>
+          <input type="text" id="form-task-title-input" class="form-input" placeholder="請輸入任務名稱 (例如: 執行技術移轉訓練)" oninput="onFormTaskTitleInput(this.value)" style="font-weight:600; font-size:14px; color:#0f172a;">
+        </div>
+        <input type="hidden" id="form-task-wbs">
+        <input type="hidden" id="form-task-title">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">任務類型 *</label>
+            <select id="form-task-type" class="form-select" onchange="onTaskTypeChange(this.value)">
+              <option value="功能">功能 (Feature)</option>
+              <option value="優化">優化 (Optimization)</option>
+              <option value="Bug">Bug 瑕疵</option>
+              <option value="需求變更">需求變更 (CR)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">🔍 任務評估人 (Estimator - 負責預估排程與工時) *</label>
+            <select id="form-task-estimator" class="form-select" onchange="onTaskEstimatorChange(this.value)"></select>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label class="form-label" style="margin:0;">👥 共同指派執行人員 (Assignees - 可複選多人完成任務) *</label>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <span id="task-assignees-count-badge" class="badge badge-info" style="font-size:11px;">已選 0 人</span>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="toggleAllTaskAssignees(true)" style="padding:1px 6px; font-size:11px;">全選</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="toggleAllTaskAssignees(false)" style="padding:1px 6px; font-size:11px;">清空</button>
+            </div>
+          </div>
+          <div id="task-assignees-selection-wrap" style="display:flex; flex-wrap:wrap; gap:6px; max-height:130px; overflow-y:auto; padding:8px; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc;">
+            <!-- 執行人員勾選按鈕將由程式動態產生 -->
+          </div>
+          <input type="hidden" id="form-task-assignee" value="">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">期望交付日期 (Expected Delivery Date)</label>
+          <input type="date" id="form-task-expected-date" class="form-input">
+        </div>
+
+        <div id="section-task-schedule" style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; transition: all 0.2s;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="font-weight:700; font-size:12px; color:#1e40af;">📅 預估排程與預估工時 (Planned Schedule)</div>
+            <span id="badge-schedule-lock" style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; display:none;"></span>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label class="form-label">預估排程時間區段 (預估起訖時間)</label>
+            <!-- 隱藏的標準日期欄位以確保現有邏輯 100% 相容 -->
+            <input type="hidden" id="form-task-start" value="">
+            <input type="hidden" id="form-task-due" value="">
+            
+            <div id="task-schedule-range-wrap" style="position:relative;">
+              <!-- 訂房網風格時間區段觸發欄位 -->
+              <div id="booking-date-range-field" class="booking-range-field" onclick="toggleDateRangePicker(event)" title="點擊展開/收合雙月份日曆選擇器">
+                <div class="booking-date-segment" id="booking-seg-start">
+                  <div class="booking-seg-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  </div>
+                  <div class="booking-seg-content">
+                    <span class="booking-seg-label">預估開始時間</span>
+                    <span class="booking-seg-date" id="booking-text-start-date">-- 年 -- 月 -- 日</span>
+                    <span class="booking-seg-weekday" id="booking-text-start-week">尚未選擇</span>
+                  </div>
+                </div>
+                
+                <div class="booking-seg-divider">➜</div>
+                
+                <div class="booking-date-segment" id="booking-seg-end">
+                  <div class="booking-seg-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  </div>
+                  <div class="booking-seg-content">
+                    <span class="booking-seg-label">預估結束時間</span>
+                    <span class="booking-seg-date" id="booking-text-end-date">-- 年 -- 月 -- 日</span>
+                    <span class="booking-seg-weekday" id="booking-text-end-week">尚未選擇</span>
+                  </div>
+                </div>
+                
+                <div class="booking-seg-meta">
+                  <span class="booking-days-pill" id="badge-range-days">未設定區間</span>
+                  <span class="booking-caret">▼</span>
+                </div>
+              </div>
+
+              <!-- 雙月份日曆浮層彈窗 (Dual-Month Calendar Popover) -->
+              <div id="booking-picker-popover" class="booking-picker-popover" style="display:none;" onclick="event.stopPropagation()">
+                <div class="booking-picker-header">
+                  <button type="button" class="booking-nav-btn" onclick="navPickerMonth(-1)" title="上一月">‹</button>
+                  <div class="booking-month-title" id="booking-month-title-left">2026年 9月</div>
+                  <div style="width: 28px;"></div>
+                  <div class="booking-month-title" id="booking-month-title-right">2026年 10月</div>
+                  <button type="button" class="booking-nav-btn" onclick="navPickerMonth(1)" title="下一月">›</button>
+                </div>
+                <div class="booking-dual-calendar-body">
+                  <div class="booking-month-col">
+                    <div class="booking-calendar-grid" id="booking-cal-grid-left"></div>
+                  </div>
+                  <div class="booking-calendar-sep"></div>
+                  <div class="booking-month-col">
+                    <div class="booking-calendar-grid" id="booking-cal-grid-right"></div>
+                  </div>
+                </div>
+                <div class="booking-picker-footer">
+                  <div class="booking-picker-summary" id="booking-picker-summary-text">請在日曆上點選開始日期</div>
+                  <div class="booking-picker-actions">
+                    <button type="button" class="btn-range-quick" style="color:#ef4444; border-color:#fecaca;" onclick="clearPickerSelection()">清除</button>
+                    <button type="button" class="btn btn-primary btn-xs" onclick="closeDateRangePicker()">完成確認</button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 快捷區段按鈕 -->
+              <div id="task-schedule-range-presets" style="display:flex; align-items:center; gap:5px; margin-top:8px; flex-wrap:wrap;">
+                <span style="font-size:11px; color:#64748b; font-weight:600;">快速區段:</span>
+                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickRange(1)" title="單日">+1天</button>
+                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickRange(3)" title="三天">+3天</button>
+                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickRange(7)" title="一週">+1週</button>
+                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickRange(14)" title="兩週">+2週</button>
+                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickRange(30)" title="一個月">+1個月</button>
+                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickPreset('this_week')" title="本週工作天">本週</button>
+                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickPreset('next_week')" title="下週工作天">下週</button>
+                <button type="button" class="btn-range-quick" onclick="applyScheduleQuickPreset('clear')" style="color:#ef4444; border-color:#fecaca;" title="清除區間">清除</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:8px;">
+            <label class="form-label">預估所需工時 (小時)</label>
+            <input type="number" id="form-task-est-hours" class="form-input" placeholder="例如 8">
+          </div>
+        </div>
+
+        <div class="form-row" id="row-task-status-severity">
+          <div class="form-group">
+            <label class="form-label">狀態 (Status) *</label>
+            <select id="form-task-status" class="form-select" onchange="onTaskStatusChange(this.value)">
+              <option value="規劃中">規劃中 (Planning)</option>
+              <option value="待執行">待執行 (Pending)</option>
+              <option value="進行中">進行中 (In Progress)</option>
+              <option value="待測試">待測試 (Pending Testing)</option>
+              <option value="已完成">已完成 (Completed)</option>
+            </select>
+          </div>
+          <div class="form-group" id="form-group-task-severity" style="display: none;">
+            <label class="form-label">危害等級</label>
+            <select id="form-task-severity" class="form-select">
+              <option value="無">無</option>
+              <option value="低">低</option>
+              <option value="中等">中等</option>
+              <option value="嚴重障礙">嚴重障礙 (Critical)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-task')">取消</button>
+        <button class="btn btn-primary" onclick="saveTask()">儲存任務 / 議題</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. WorkLog Modal (填報工時日誌) -->
+  <div class="modal-overlay" id="modal-worklog" onclick="handleOverlayClick(event, 'modal-worklog')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-worklog-title">填報工時日誌 (Log Work)</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-worklog')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-worklog-id">
+        <div class="form-group">
+          <label class="form-label">選擇任務 (連動當前主專案) *</label>
+          <select id="form-worklog-task" class="form-select" onchange="onWorkLogTaskSelectChanged(this.value)"></select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">填報日期 *</label>
+            <input type="date" id="form-worklog-date" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">投入工時 (小時) *</label>
+            <input type="number" id="form-worklog-hours" class="form-input" min="0.5" step="0.5" value="4">
+          </div>
+        </div>
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label class="form-label" style="margin:0;">填報人員姓名 (限此任務被指派人員) *</label>
+            <span style="font-size:11px; color:#64748b;">自動帶入此任務指派人員名單</span>
+          </div>
+          <select id="form-worklog-user" class="form-select"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">工作說明與備註簡述</label>
+          <textarea id="form-worklog-notes" class="form-textarea" rows="3" placeholder="簡述今日完成之實質內容..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-worklog')">取消</button>
+        <button class="btn btn-primary" onclick="saveWorkLog()">儲存工時日誌</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Issue Modal (提報問題與測試追蹤 - HTML 富文本 / 附件) -->
+  <div class="modal-overlay" id="modal-issue" onclick="handleOverlayClick(event, 'modal-issue')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-issue-title">提報問題與測試追蹤 (HTML 富文本 / 附件)</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-issue')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-issue-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">所屬主專案 *</label>
+            <select id="form-issue-project" class="form-select" onchange="onIssueProjectSelectChanged(this.value)"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">關聯模組與任務 (選填: 針對特定進程與所測試追蹤)</label>
+            <select id="form-issue-task" class="form-select"></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">追蹤類別 *</label>
+            <select id="form-issue-category" class="form-select">
+              <option value="問題瑕疵">問題瑕疵</option>
+              <option value="驗收測試">驗收測試</option>
+              <option value="需求變更">需求變更 (CR)</option>
+              <option value="優化反饋">優化反饋</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">類別 / 問題標題 *</label>
+            <input type="text" id="form-issue-title-input" class="form-input" placeholder="例如: 登出~密碼重置異常 或 表單檢核...">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">負責人員</label>
+            <select id="form-issue-assignee" class="form-select"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">處理狀態 *</label>
+            <select id="form-issue-status" class="form-select">
+              <option value="已確認">已確認</option>
+              <option value="待處理">待處理</option>
+              <option value="處理中">處理中</option>
+              <option value="已修復">已修復</option>
+              <option value="已關閉">已關閉</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- HTML Rich Text Editor -->
+        <div class="form-group">
+          <label class="form-label">問題描述 (HTML 富文本) *</label>
+          <div class="rich-editor-toolbar">
+            <button type="button" class="rich-btn" onclick="execEditorCmd('bold')"><b>B</b></button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('italic')"><i>I</i></button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('underline')"><u>U</u></button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('strikeThrough')"><s>S</s></button>
+            <span style="color:#cbd5e1;">|</span>
+            <button type="button" class="rich-btn" onclick="triggerEditorImage()">🖼️ 上傳圖片</button>
+            <input type="file" id="editor-image-file" style="display:none;" accept="image/*" onchange="insertEditorImageFile(event)">
+            <select class="form-select" style="width:auto; padding:3px 6px; font-size:11px;" onchange="execEditorCmd('formatBlock', this.value)">
+              <option value="div">Normal (內文)</option>
+              <option value="h3">標題 H3</option>
+              <option value="h4">標題 H4</option>
+              <option value="pre">程式碼 Code</option>
+            </select>
+            <select class="form-select" style="width:auto; padding:3px 6px; font-size:11px;" onchange="execEditorCmd('fontName', this.value)">
+              <option value="Microsoft JhengHei">微軟正黑體</option>
+              <option value="Sans Serif">Sans Serif</option>
+              <option value="monospace">等寬字體</option>
+            </select>
+            <span style="color:#cbd5e1;">|</span>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('insertUnorderedList')">• 清單</button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('insertOrderedList')">1. 列表</button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('justifyLeft')">⇤</button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('justifyCenter')">≡</button>
+            <button type="button" class="rich-btn" onclick="execEditorCmd('removeFormat')">Tx</button>
+          </div>
+          <div id="issue-editor-content" class="rich-editor-content" contenteditable="true" placeholder="請詳細描述問題背景與測試或程式碼內容..."></div>
+        </div>
+
+        <!-- Attachment Upload Area -->
+        <div class="form-group">
+          <label class="form-label">附件檔案清單 (支援 PDF、Word、Excel、PPT、TXT、JPG、PNG)</label>
+          <div class="dropzone" id="issue-dropzone" onclick="triggerAttachmentSelect()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)">
+            <div style="font-size: 20px; margin-bottom: 4px;">📎</div>
+            <div style="font-weight:700; color:#334155;">點擊或拖曳檔案至此處上傳</div>
+            <div style="font-size:11px; color:#64748b; margin-top:2px;">支援各類 Office 文件與螢幕截圖圖片</div>
+            <input type="file" id="issue-file-input" style="display:none;" multiple onchange="handleAttachmentFiles(event.target.files)">
+          </div>
+          <div id="issue-attachments-list" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-issue')">取消</button>
+        <button class="btn btn-primary" onclick="saveIssue()">儲存並發佈問題與測試追蹤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7.1 Holiday Modal (新增/編輯國定假日與補班日) -->
+  <div class="modal-overlay" id="modal-holiday" onclick="handleOverlayClick(event, 'modal-holiday')">
+    <div class="modal-box" style="max-width: 520px;">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-holiday-title">編輯假日 / 補上班日</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-holiday')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-holiday-id">
+        <div class="form-group">
+          <label class="form-label">日期 *</label>
+          <input type="date" id="form-holiday-date" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">節日 / 休假名稱 *</label>
+          <input type="text" id="form-holiday-name" class="form-input" placeholder="例如: 農曆除夕、和平紀念日、春節補行上班日" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">假別分類 *</label>
+          <select id="form-holiday-category" class="form-select" onchange="onHolidayCategoryChange(this.value)">
+            <option value="國定假日">國定假日 (放假)</option>
+            <option value="彈性放假">彈性放假 (放假)</option>
+            <option value="補行上班">補行上班 (需上班)</option>
+            <option value="公司自訂休假">公司自訂休假 (放假)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">出勤性質 (排程工作天計算判定) *</label>
+          <select id="form-holiday-workday-type" class="form-select">
+            <option value="holiday">🔴 放假日 (扣除，不計入上班工作天)</option>
+            <option value="work">🟢 上班日 (計入上班工作天，如補班日)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">備註說明</label>
+          <input type="text" id="form-holiday-note" class="form-input" placeholder="例如: 依行政院人事行政總處公告、補 1/27 調整放假">
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <button type="button" class="btn btn-danger-outline btn-sm" id="modal-holiday-delete-btn" style="display:none;" onclick="deleteCurrentHoliday()">🗑️ 刪除此假日</button>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary" onclick="closeModal('modal-holiday')">取消</button>
+          <button class="btn btn-primary" onclick="saveHoliday()">儲存設定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. Login Modal (帳號密碼登入 & Google SSO) -->
+  <div class="modal-overlay" id="modal-login" onclick="handleOverlayClick(event, 'modal-login')">
+    <div class="modal-box" style="max-width: 460px; padding: 28px 26px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; background: #eff6ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 16px;">
+            🔑
+          </div>
+          <div>
+            <h3 style="font-size: 16px; font-weight: 800; color: #0f172a;">登入 B2B 專案管理系統</h3>
+            <div style="font-size: 11px; color: #64748b;">請選擇成員帳號或輸入已授權之 Email 登入</div>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-login')">✕</button>
+      </div>
+
+      <!-- Quick Select Team Member Demo Login -->
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+        <label class="form-label" style="font-size: 12px; font-weight: 700; color: #1e3a8a; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+          <span>⚡ 快速切換成員身分登入 (Demo)</span>
+        </label>
+        <select id="login-quick-member-select" class="form-select" onchange="onLoginMemberSelect(this.value)" style="font-weight: 600;">
+          <!-- Populated dynamically via JS -->
+        </select>
+        <div style="font-size: 11px; color: #64748b; margin-top: 4px;">點選成員可自動帶入授權 Email，即刻以該成員職責與視角登入。</div>
+      </div>
+
+      <!-- Credentials Form -->
+      <form onsubmit="event.preventDefault(); loginWithCredentials();">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label">員工授權帳號 (Email) *</label>
+          <input type="email" id="login-input-email" class="form-input" value="obilirene@gmail.com" placeholder="請輸入授權 Email..." required>
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label">登入密碼 *</label>
+          <input type="password" id="login-input-password" class="form-input" value="123456" placeholder="請輸入密碼..." required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 10px; font-size: 14px; font-weight: 700; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
+          立即登入系統 ➜
+        </button>
+      </form>
+
+      <!-- Google SSO Divider -->
+      <div style="display: flex; align-items: center; gap: 10px; margin: 16px 0 12px; color: #94a3b8; font-size: 11px;">
+        <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+        <span>或使用第三方單一登入</span>
+        <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+      </div>
+
+      <button type="button" onclick="loginWithGoogle()" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; color: #1e293b; font-weight: 600; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.28v3.13C3.26 21.3 7.35 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.6H1.28C.46 8.23 0 10.06 0 12s.46 3.77 1.28 5.4l4-3.13z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.26 2.7 1.28 6.6l4 3.13c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
+        使用 Google 帳戶 (Gmail) SSO 驗證登入
+      </button>
+
+      <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748b;">
+        <span>🔒 僅限員工管理名單授權之成員登入</span>
+        <button type="button" class="btn btn-secondary btn-xs" onclick="closeModal('modal-login')">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+
+  <!-- Firebase External CDN Libraries -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+  <!-- JavaScript Application State, Engine & Scoping Logic -->
+  <script src="script.js"></script>
+</body>
+</html>
