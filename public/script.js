@@ -4609,15 +4609,9 @@
       let badgeStyle = '';
 
       if (status === '規劃中') {
-        if (isEstimator || isManager) {
-          canEdit = true;
-          badgeText = isManager ? '✓ 主管權限可預估排程與工時' : `✓ 評估人「${estimator || '您'}」可預估排程工時`;
-          badgeStyle = 'background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;';
-        } else {
-          canEdit = false;
-          badgeText = `🔒 鎖定 (僅限評估人「${estimator || '未指定'}」或主管填寫)`;
-          badgeStyle = 'background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;';
-        }
+        canEdit = false;
+        badgeText = `🔒 PM 規劃階段 (發布至「待評估」後由評估人「${estimator || '未指定'}」填寫排程與工時)`;
+        badgeStyle = 'background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;';
       } else if (status === '待評估') {
         if (isEstimator || isManager) {
           canEdit = true;
