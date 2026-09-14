@@ -1355,6 +1355,8 @@
 
       const btnAddIssue = document.getElementById('btn-add-issue');
       if (btnAddIssue) btnAddIssue.style.display = hasPermission('issue_create') ? '' : 'none';
+
+      updateTaskBasicFieldsPermissions();
     }
 
     function toggleRoleSimulator(checked) {
@@ -4456,6 +4458,7 @@
         `;
       }).join('');
       updateTaskAssigneesCountBadge();
+      updateTaskBasicFieldsPermissions();
     }
 
     function getSelectedTaskAssignees() {
@@ -4485,10 +4488,80 @@
     }
 
     function toggleAllTaskAssignees(checkAll) {
+      if (!isCurrentRoleManager() && !hasPermission('task_edit')) return;
       document.querySelectorAll('input[name="task-assignee-cb"]').forEach(cb => {
-        cb.checked = checkAll;
+        if (!cb.disabled) cb.checked = checkAll;
       });
       onTaskAssigneeCheckboxChange();
+    }
+
+    function updateTaskBasicFieldsPermissions() {
+      const isManager = isCurrentRoleManager();
+      const canEditTask = hasPermission('task_edit');
+      const canEditBasic = isManager || canEditTask;
+
+      // 1. Core Metadata Selects & Inputs
+      const projSel = document.getElementById('form-task-project');
+      const phaseSel = document.getElementById('form-task-phase');
+      const modSel = document.getElementById('form-task-module');
+      const titleInput = document.getElementById('form-task-title-input');
+      const typeSel = document.getElementById('form-task-type');
+      const estimatorSel = document.getElementById('form-task-estimator');
+      const expDateInput = document.getElementById('form-task-expected-date');
+      const severitySel = document.getElementById('form-task-severity');
+
+      if (projSel) projSel.disabled = !canEditBasic;
+      if (phaseSel) phaseSel.disabled = !canEditBasic;
+      if (modSel) modSel.disabled = !canEditBasic;
+      if (titleInput) {
+        titleInput.disabled = !canEditBasic;
+        titleInput.style.background = canEditBasic ? 'white' : '#f1f5f9';
+        titleInput.style.cursor = canEditBasic ? 'text' : 'not-allowed';
+      }
+      if (typeSel) typeSel.disabled = !canEditBasic;
+      if (estimatorSel) estimatorSel.disabled = !canEditBasic;
+      if (expDateInput) expDateInput.disabled = !canEditBasic;
+      if (severitySel) severitySel.disabled = !canEditBasic;
+
+      // 2. Assignees Selection Checkboxes & Controls
+      const assigneeCbs = document.querySelectorAll('input[name="task-assignee-cb"]');
+      assigneeCbs.forEach(cb => {
+        cb.disabled = !canEditBasic;
+        const pill = cb.closest('.assignee-pill');
+        if (pill) {
+          pill.style.opacity = canEditBasic ? '1' : '0.65';
+          pill.style.cursor = canEditBasic ? 'pointer' : 'not-allowed';
+        }
+      });
+
+      const btnSelectAll = document.getElementById('btn-select-all-assignees');
+      const btnClearAll = document.getElementById('btn-clear-assignees');
+      if (btnSelectAll) {
+        btnSelectAll.disabled = !canEditBasic;
+        btnSelectAll.style.opacity = canEditBasic ? '1' : '0.4';
+        btnSelectAll.style.cursor = canEditBasic ? 'pointer' : 'not-allowed';
+      }
+      if (btnClearAll) {
+        btnClearAll.disabled = !canEditBasic;
+        btnClearAll.style.opacity = canEditBasic ? '1' : '0.4';
+        btnClearAll.style.cursor = canEditBasic ? 'pointer' : 'not-allowed';
+      }
+
+      // 3. Modal Header Title Inline Editing
+      const titleTextEl = document.getElementById('modal-task-title-text');
+      const editIconEl = document.getElementById('modal-task-title-edit-icon');
+      if (titleTextEl) {
+        if (canEditBasic) {
+          titleTextEl.style.cursor = 'pointer';
+          titleTextEl.setAttribute('onclick', 'startModalTaskTitleEdit()');
+        } else {
+          titleTextEl.style.cursor = 'default';
+          titleTextEl.removeAttribute('onclick');
+        }
+      }
+      if (editIconEl) {
+        editIconEl.style.display = canEditBasic ? 'inline' : 'none';
+      }
     }
 
     function updateTaskAssigneesCountBadge() {
@@ -4833,6 +4906,7 @@
       updateTaskScheduleSectionState(taskStatus, taskEstimator);
       updateTaskStatusDropdownPermissions(taskStatus, taskAssignees);
       updateTaskModalHeaderAndFooterActions(taskStatus, taskEstimator, taskAssignees);
+      updateTaskBasicFieldsPermissions();
       openModal('modal-task');
       setTimeout(() => {
         const bodyTitleInput = document.getElementById('form-task-title-input');

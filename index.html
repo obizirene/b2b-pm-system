@@ -960,8 +960,8 @@
             <label class="form-label" style="margin:0;">👥 共同指派執行人員 (Assignees - 可複選多人完成任務) *</label>
             <div style="display:flex; gap:6px; align-items:center;">
               <span id="task-assignees-count-badge" class="badge badge-info" style="font-size:11px;">已選 0 人</span>
-              <button type="button" class="btn btn-secondary btn-xs" onclick="toggleAllTaskAssignees(true)" style="padding:1px 6px; font-size:11px;">全選</button>
-              <button type="button" class="btn btn-secondary btn-xs" onclick="toggleAllTaskAssignees(false)" style="padding:1px 6px; font-size:11px;">清空</button>
+              <button type="button" id="btn-select-all-assignees" class="btn btn-secondary btn-xs" onclick="toggleAllTaskAssignees(true)" style="padding:1px 6px; font-size:11px;">全選</button>
+              <button type="button" id="btn-clear-assignees" class="btn btn-secondary btn-xs" onclick="toggleAllTaskAssignees(false)" style="padding:1px 6px; font-size:11px;">清空</button>
             </div>
           </div>
           <div id="task-assignees-selection-wrap" style="display:flex; flex-wrap:wrap; gap:6px; max-height:130px; overflow-y:auto; padding:8px; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc;">
