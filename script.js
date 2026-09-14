@@ -2004,11 +2004,8 @@
             <td>
               <span class="badge badge-info" style="font-size:12px;">👥 ${deptMembers.length} 位成員</span>
             </td>
-            <td>
-              <span class="badge badge-purple" style="font-size:11px;">👑 主管權限: 繼承【部門主管】角色矩陣</span>
-            </td>
             <td style="text-align: right;">
-              ${hasPermission('dept_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openDepartmentModal('${dept.id}')">⚙️ 編輯主管</button>` : ''}
+              ${hasPermission('dept_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openDepartmentModal('${dept.id}')">編輯</button>` : ''}
               ${hasPermission('dept_edit') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteDepartment('${dept.id}')">刪除</button>` : ''}
             </td>
           </tr>
