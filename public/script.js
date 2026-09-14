@@ -1332,6 +1332,18 @@
       return true;
     }
 
+    function isDepartmentManager(member) {
+      if (!member) return false;
+      const isManagerOfDept = (state.departments || []).some(d => 
+        d.managerId === member.id || 
+        d.managerName === member.name || 
+        (member.name && d.managerName && d.managerName.includes(member.name)) ||
+        (d.managerName && member.name && member.name.includes(d.managerName))
+      );
+      const isPmOrAdmin = member.role === '專案經理 (PM)' || member.role === '系統管理員' || member.role === 'PM';
+      return isManagerOfDept || isPmOrAdmin;
+    }
+
     function getTaskBadgeClass(status) {
       if (status === '已完成') return 'badge-success';
       if (status === '待測試') return 'badge-purple';
@@ -5121,8 +5133,27 @@
     function renderTaskAssigneesCheckboxes(selectedNames = []) {
       const wrap = document.getElementById('task-assignees-selection-wrap');
       if (!wrap) return;
-      const set = new Set(selectedNames.map(s => s.trim()));
-      wrap.innerHTML = state.members.map(m => {
+      const set = new Set((selectedNames || []).map(s => s.trim()));
+
+      const currentEstimatorName = (document.getElementById('form-task-estimator')?.value || '').trim();
+      const estimatorMember = state.members.find(m => m.name === currentEstimatorName);
+
+      let membersToDisplay = state.members;
+      let deptNoticeHtml = '';
+
+      if (estimatorMember && estimatorMember.departmentId) {
+        const dept = (state.departments || []).find(d => d.id === estimatorMember.departmentId);
+        const deptMembers = state.members.filter(m => m.departmentId === estimatorMember.departmentId);
+        if (deptMembers.length > 0) {
+          membersToDisplay = deptMembers;
+          const deptName = dept ? dept.name.split(' ')[0] : (estimatorMember.departmentName || '');
+          deptNoticeHtml = `<div style="width:100%; font-size:11px; color:#1e40af; font-weight:700; margin-bottom:6px; background:#eff6ff; padding:4px 8px; border-radius:4px; border:1px solid #bfdbfe;">🏢 已根據評估人「${currentEstimatorName}」自動限定【${deptName}】部門成員：</div>`;
+        }
+      } else if (!currentEstimatorName) {
+        deptNoticeHtml = `<div style="width:100%; font-size:11px; color:#475569; font-weight:600; margin-bottom:6px; background:#f1f5f9; padding:4px 8px; border-radius:4px;">💡 提示：選擇任務評估人 (主管) 後，將自動限定顯示該主管部門下之執行人員</div>`;
+      }
+
+      wrap.innerHTML = deptNoticeHtml + membersToDisplay.map(m => {
         const isChecked = set.has(m.name.trim());
         return `
           <label class="assignee-pill ${isChecked ? 'active' : ''}">
@@ -5270,9 +5301,18 @@
 
     function onTaskEstimatorChange(newEstimator) {
       const status = document.getElementById('form-task-status')?.value || '規劃中';
-      const assignees = getSelectedTaskAssignees();
+      const currentAssignees = getSelectedTaskAssignees();
+      
+      // Re-render assignees checkboxes filtered by new estimator's department
+      renderTaskAssigneesCheckboxes(currentAssignees);
+
+      const validAssignees = getSelectedTaskAssignees();
+      const assigneeInput = document.getElementById('form-task-assignee');
+      if (assigneeInput) assigneeInput.value = validAssignees.join(', ');
+
       updateTaskScheduleSectionState(status, newEstimator);
-      updateTaskModalHeaderAndFooterActions(status, newEstimator, assignees);
+      updateTaskStatusDropdownPermissions(status, validAssignees);
+      updateTaskModalHeaderAndFooterActions(status, newEstimator, validAssignees);
     }
 
     function onTaskAssigneeChange(newAssignee) {
@@ -5523,11 +5563,26 @@
           projSelect.innerHTML = state.projects.map(p => `<option value="${p.id}" ${p.id === state.currentProjectId ? 'selected' : ''}>${p.name}</option>`).join('');
         }
 
-        // Populate Estimator select
+        // Populate Estimator select (Restricted to Department Managers)
         const estimatorSelect = document.getElementById('form-task-estimator');
         if (estimatorSelect) {
-          estimatorSelect.innerHTML = '<option value="">-- 請指定評估人 --</option>' + 
-            state.members.map(m => `<option value="${m.name}">${m.name} (${m.role})</option>`).join('');
+          let managerMembers = state.members.filter(m => isDepartmentManager(m));
+          if (taskId) {
+            const t = state.tasks.find(x => x.id === taskId);
+            if (t) {
+              const tEst = getTaskEstimator(t);
+              if (tEst && !managerMembers.some(m => m.name === tEst)) {
+                const existingEstMember = state.members.find(m => m.name === tEst);
+                if (existingEstMember) managerMembers.push(existingEstMember);
+              }
+            }
+          }
+          estimatorSelect.innerHTML = '<option value="">-- 請指定任務評估人 (僅限主管) --</option>' + 
+            managerMembers.map(m => {
+              const dept = (state.departments || []).find(d => d.id === m.departmentId);
+              const deptLabel = dept ? ` [${dept.name.split(' ')[0]}]` : '';
+              return `<option value="${m.name}">${m.name} (${m.role})${deptLabel}</option>`;
+            }).join('');
         }
 
         onTaskProjectSelectChanged(state.currentProjectId);
@@ -5603,8 +5658,12 @@
           const typeEl = document.getElementById('form-task-type');
           if (typeEl) typeEl.value = '功能';
 
-          // Default estimator to current user or first member
-          const defaultEstimator = (currentAuthUser && currentAuthUser.memberInfo) ? currentAuthUser.memberInfo.name : (state.members[0]?.name || '');
+          // Default estimator to current user (if manager) or first manager
+          const managerMembers = state.members.filter(m => isDepartmentManager(m));
+          const currentUserName = (currentAuthUser && currentAuthUser.memberInfo) ? currentAuthUser.memberInfo.name : '';
+          const defaultEstimator = (currentUserName && managerMembers.some(m => m.name === currentUserName)) 
+            ? currentUserName 
+            : (managerMembers[0]?.name || '');
           if (estimatorSelect) estimatorSelect.value = defaultEstimator;
           taskEstimator = defaultEstimator;
 
