@@ -382,6 +382,9 @@
       state.phases.forEach(p => {
         (p.modules || []).forEach(m => {
           (m.tasks || []).forEach(t => {
+            if (!t.projectId) t.projectId = p.projectId;
+            if (!t.phaseId) t.phaseId = p.id;
+            if (!t.moduleId) t.moduleId = m.id;
             flat.push(t);
           });
         });
@@ -1250,10 +1253,23 @@
     function applyRolePermissions() {
       // 1. Sidebar module buttons visibility
       const btnDashboard = document.getElementById('nav-btn-dashboard');
+      const btnMembers = document.getElementById('nav-btn-members');
+      const btnRoles = document.getElementById('nav-btn-roles');
+      const btnClients = document.getElementById('nav-btn-clients');
+      const btnProjects = document.getElementById('nav-btn-projects');
       const btnGantt = document.getElementById('nav-btn-gantt');
       const btnWorklogs = document.getElementById('nav-btn-worklogs');
       const btnTasks = document.getElementById('nav-btn-tasks');
       const btnIssues = document.getElementById('nav-btn-issues');
+
+      const canDashboard = hasPermission('dashboard_view');
+      const canMembers = hasPermission('member_view');
+      const canRoles = hasPermission('role_view');
+      const canClients = hasPermission('client_view');
+      const canProjects = hasPermission('proj_view');
+      const canGantt = hasPermission('gantt_view');
+      const canWorklogs = hasPermission('worklog_view');
+      const canTasks = hasPermission('task_view');
       const canIssues = hasPermission('issue_view');
 
       if (btnDashboard) btnDashboard.style.display = canDashboard ? '' : 'none';
