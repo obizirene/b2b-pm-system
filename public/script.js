@@ -4516,10 +4516,6 @@
 
     function isTaskVisibleToCurrentRole(task) {
       if (!task) return false;
-      const isManager = isCurrentRoleManager();
-      if (isManager) return true;
-      // 共同指派執行人員與任務評估人在任務為「規劃中」狀態時，看不到該筆任務
-      if (task.status === '規劃中') return false;
       return true;
     }
 
@@ -4870,10 +4866,6 @@
       if (taskId) {
         const t = state.tasks.find(x => x.id === taskId);
         if (t) {
-          if (!isTaskVisibleToCurrentRole(t)) {
-            alert('⚠️ 權限不足：您無權檢視尚未發布（規劃中）之任務！');
-            return;
-          }
           projSelect.value = t.projectId || state.currentProjectId;
           onTaskProjectSelectChanged(t.projectId || state.currentProjectId);
           document.getElementById('form-task-phase').value = t.phaseId;
@@ -4996,10 +4988,10 @@
           if (titleInput) finishModalTaskTitleEdit(titleInput.value);
         }
         const id = document.getElementById('form-task-id').value;
-        const projectId = document.getElementById('form-task-project').value;
-        const phaseId = document.getElementById('form-task-phase').value;
-        const moduleId = document.getElementById('form-task-module').value;
-        const wbs = document.getElementById('form-task-wbs').value.trim();
+        const projectId = document.getElementById('form-task-project')?.value || state.currentProjectId;
+        let phaseId = document.getElementById('form-task-phase')?.value;
+        let moduleId = document.getElementById('form-task-module')?.value;
+        const wbs = (document.getElementById('form-task-wbs')?.value || '').trim();
         
         let title = (document.getElementById('form-task-title-input')?.value || document.getElementById('form-task-title')?.value || '').trim();
         if (!title) {
@@ -5019,21 +5011,20 @@
           return;
         }
 
-        const type = document.getElementById('form-task-type').value;
-        const estimator = (document.getElementById('form-task-estimator')?.value || '').trim();
+        const type = document.getElementById('form-task-type')?.value || '功能';
+        let estimator = (document.getElementById('form-task-estimator')?.value || '').trim();
+        if (!estimator) {
+          estimator = (currentAuthUser && currentAuthUser.memberInfo) ? currentAuthUser.memberInfo.name : (state.members[0]?.name || '系統管理員');
+        }
+
         const assignees = getSelectedTaskAssignees();
         const assignee = assignees.join(', ');
-        const expectedDeliveryDate = document.getElementById('form-task-expected-date').value;
-        const startDate = document.getElementById('form-task-start').value;
-        const dueDate = document.getElementById('form-task-due').value;
-        const estHours = document.getElementById('form-task-est-hours').value !== '' ? Number(document.getElementById('form-task-est-hours').value) : 0;
-        let status = document.getElementById('form-task-status').value;
+        const expectedDeliveryDate = document.getElementById('form-task-expected-date')?.value || '';
+        const startDate = document.getElementById('form-task-start')?.value || '';
+        const dueDate = document.getElementById('form-task-due')?.value || '';
+        const estHours = (document.getElementById('form-task-est-hours')?.value !== '') ? Number(document.getElementById('form-task-est-hours')?.value) : 0;
+        let status = document.getElementById('form-task-status')?.value || '規劃中';
         const severity = (type === 'Bug') ? (document.getElementById('form-task-severity')?.value || '無') : '無';
-
-        if (!estimator) {
-          alert('請指定此任務的「評估人」！');
-          return;
-        }
 
         // 檢查審核權限
         if (status === '已完成' && !hasPermission('task_complete_permission')) {
@@ -5044,35 +5035,43 @@
         // 待執行：填寫完畢就切換狀態為【進行中】
         if (status === '待執行' && startDate && dueDate && estHours > 0) {
           status = '進行中';
-          document.getElementById('form-task-status').value = '進行中';
+          setTaskModalStatus('進行中');
           showToast('預估排程與工時已填寫完畢，任務狀態自動轉換為「進行中」！');
         }
 
         sanitizePhases();
 
-        if (id) {
-          let existingTask = null;
-          state.phases.forEach(p => {
-            (p.modules || []).forEach(m => {
-              const idx = (m.tasks || []).findIndex(t => t.id === id);
-              if (idx !== -1) {
-                existingTask = m.tasks[idx];
-                if (m.id !== moduleId || p.id !== phaseId) {
-                  m.tasks.splice(idx, 1);
-                }
-              }
-            });
-          });
+        let phase = state.phases.find(p => p.id === phaseId);
+        if (!phase) {
+          const projectPhases = state.phases.filter(p => p.projectId === projectId);
+          if (projectPhases.length > 0) {
+            phase = projectPhases[0];
+            phaseId = phase.id;
+          } else {
+            phase = {
+              id: 'phase-' + Date.now(),
+              projectId: projectId,
+              name: '需求分析與規劃',
+              expanded: true,
+              modules: []
+            };
+            state.phases.push(phase);
+            phaseId = phase.id;
+          }
+        }
 
-          const phase = state.phases.find(p => p.id === phaseId);
-          if (!phase) { alert('請先建立或選擇階段！'); return; }
-          if (!phase.modules) phase.modules = [];
-          let targetMod = phase.modules.find(m => m.id === moduleId);
-          if (!targetMod) {
+        if (!phase.modules) phase.modules = [];
+        let targetMod = phase.modules.find(m => m.id === moduleId);
+        if (!targetMod) {
+          if (phase.modules.length > 0) {
+            targetMod = phase.modules[0];
+          } else {
             targetMod = { id: 'mod-' + Date.now(), name: '通用核心模組', tasks: [] };
             phase.modules.push(targetMod);
           }
-          if (!targetMod.tasks) targetMod.tasks = [];
+          moduleId = targetMod.id;
+        }
+        if (!targetMod.tasks) targetMod.tasks = [];
 
           if (existingTask) {
             existingTask.projectId = projectId;
