@@ -4623,9 +4623,16 @@
       const isAssignee = checkIsTaskAssignee(assignees);
 
       if (btnSave) {
-        if ((status === '規劃中' && isManager) || (status === '待評估' && (isEstimator || isManager))) {
+        const canEditBasic = (status === '規劃中') && (isManager || hasPermission('task_edit'));
+        const canEditSchedule = (status === '待評估') && (isEstimator || isManager || hasPermission('task_edit'));
+        const canEditManager = isManager || hasPermission('task_edit');
+        const canEditAssignee = isAssignee && status === '進行中';
+
+        const canSave = canEditBasic || canEditSchedule || canEditManager || canEditAssignee;
+
+        if (canSave) {
           btnSave.style.display = 'inline-block';
-          btnSave.innerText = '💾 儲存草稿';
+          btnSave.innerText = (status === '規劃中' || status === '待評估') ? '💾 儲存草稿' : '💾 儲存';
         } else {
           btnSave.style.display = 'none';
         }
@@ -4662,11 +4669,6 @@
 
     function publishTaskFromModal() {
       setTaskModalStatus('待評估');
-      const estimator = document.getElementById('form-task-estimator')?.value || '';
-      const assignees = getSelectedTaskAssignees();
-      updateTaskScheduleSectionState('待評估', estimator);
-      updateTaskModalHeaderAndFooterActions('待評估', estimator, assignees);
-      updateTaskBasicFieldsPermissions();
       saveTask();
     }
 
@@ -4676,41 +4678,21 @@
         if (!confirm('⚠️ 尚未填寫預估工時，確定要送出評估並切換為待執行嗎？')) return;
       }
       setTaskModalStatus('待執行');
-      const estimator = document.getElementById('form-task-estimator')?.value || '';
-      const assignees = getSelectedTaskAssignees();
-      updateTaskScheduleSectionState('待執行', estimator);
-      updateTaskModalHeaderAndFooterActions('待執行', estimator, assignees);
-      updateTaskBasicFieldsPermissions();
       saveTask();
     }
 
     function startTaskExecutionFromModal() {
       setTaskModalStatus('進行中');
-      const estimator = document.getElementById('form-task-estimator')?.value || '';
-      const assignees = getSelectedTaskAssignees();
-      updateTaskScheduleSectionState('進行中', estimator);
-      updateTaskModalHeaderAndFooterActions('進行中', estimator, assignees);
-      updateTaskBasicFieldsPermissions();
       saveTask();
     }
 
     function completeTaskExecutionFromModal() {
       setTaskModalStatus('待測試');
-      const estimator = document.getElementById('form-task-estimator')?.value || '';
-      const assignees = getSelectedTaskAssignees();
-      updateTaskScheduleSectionState('待測試', estimator);
-      updateTaskModalHeaderAndFooterActions('待測試', estimator, assignees);
-      updateTaskBasicFieldsPermissions();
       saveTask();
     }
 
     function completeTaskFinalFromModal() {
       setTaskModalStatus('已完成');
-      const estimator = document.getElementById('form-task-estimator')?.value || '';
-      const assignees = getSelectedTaskAssignees();
-      updateTaskScheduleSectionState('已完成', estimator);
-      updateTaskModalHeaderAndFooterActions('已完成', estimator, assignees);
-      updateTaskBasicFieldsPermissions();
       saveTask();
     }
 
@@ -4859,6 +4841,7 @@
 
     function openTaskModal(taskId = null, prefillPhaseId = null, prefillModuleId = null) {
       sanitizePhases();
+      state.tasks = getFlatTasks();
       closeDateRangePicker();
       document.getElementById('form-task-id').value = taskId || '';
 
