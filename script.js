@@ -1620,7 +1620,8 @@
       if (m) m.classList.remove('open');
     }
     function handleOverlayClick(e, id) {
-      if (e.target.classList.contains('modal-overlay')) closeModal(id);
+      // 點擊彈窗外部區域不自動關閉彈窗（須點擊 ✕ 或取消按鈕），防止編輯中途誤觸關閉
+      return;
     }
 
     // ================= 1. DASHBOARD =================
