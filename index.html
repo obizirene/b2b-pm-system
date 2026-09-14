@@ -389,7 +389,7 @@
         <div class="page-title-row">
           <div>
             <h1 class="page-title">部門管理 (Department Management)</h1>
-            <p class="page-subtitle">建立公司組織部門、指定部門主管，配置部門主管與部門員工之獨立權限矩陣</p>
+            <p class="page-subtitle">建立公司組織部門與指定部門主管，主管權限統由【角色管理 ➔ 部門主管】維護</p>
           </div>
           <button class="btn btn-primary" id="btn-add-department" onclick="openDepartmentModal()">+ 新增部門</button>
         </div>
@@ -398,11 +398,10 @@
           <table>
             <thead>
               <tr>
-                <th>部門代碼與名稱</th>
+                <th>部門名稱</th>
                 <th>部門主管</th>
                 <th>部門成員數</th>
-                <th>部門職掌與簡介</th>
-                <th>主管權限 / 員工權限獨立矩陣</th>
+                <th>權限繼承模式</th>
                 <th style="text-align: right;">操作項目</th>
               </tr>
             </thead>
@@ -780,33 +779,14 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="form-dept-id">
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label required">部門代碼 (Department Code) *</label>
-            <input type="text" id="form-dept-code" class="form-input" placeholder="例如: RD, PMO, DESIGN">
-          </div>
-          <div class="form-group">
-            <label class="form-label required">部門名稱 (Department Name) *</label>
-            <input type="text" id="form-dept-name" class="form-input" placeholder="例如: 研發部 (R&D Department)">
-          </div>
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label required">部門名稱 (Department Name) *</label>
+          <input type="text" id="form-dept-name" class="form-input" placeholder="例如: 研發部 (R&D Department)">
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">👑 部門主管 (Department Manager)</label>
-            <select id="form-dept-manager" class="form-select"></select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">部門職掌與核心簡介</label>
-            <input type="text" id="form-dept-desc" class="form-input" placeholder="簡述部門核心職掌與責任目標...">
-          </div>
-        </div>
-
-        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px; margin-top: 14px; display: flex; align-items: flex-start; gap: 10px;">
-          <span style="font-size: 20px;">🛡️</span>
-          <div style="font-size: 12px; color: #1e40af; line-height: 1.5;">
-            <strong>權限管理提示</strong>：部門主管之全站功能權限，已調整為由 <strong>【權限矩陣管理 ➔ 部門主管】</strong> 集中設定與繼承。在此只需指定「誰是部門主管」即可。
-          </div>
+        <div class="form-group">
+          <label class="form-label">👑 部門主管 (Department Manager)</label>
+          <select id="form-dept-manager" class="form-select"></select>
         </div>
       </div>
       <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">

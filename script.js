@@ -1997,7 +1997,6 @@
           <tr>
             <td>
               <div style="font-weight:700; color:#0f172a; font-size:14px;">${dept.name}</div>
-              <div style="font-size:11px; color:#2563eb; font-family:monospace; font-weight:700;">代碼: ${dept.code}</div>
             </td>
             <td>
               <span class="badge badge-warning" style="font-weight:700;">👑 ${managerName}</span>
@@ -2005,16 +2004,11 @@
             <td>
               <span class="badge badge-info" style="font-size:12px;">👥 ${deptMembers.length} 位成員</span>
             </td>
-            <td style="font-size:12px; color:#475569; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-              ${dept.description || '無特別說明'}
-            </td>
             <td>
-              <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <span class="badge badge-purple" style="font-size:11px;">👑 主管權限: 繼承【部門主管】角色矩陣</span>
-              </div>
+              <span class="badge badge-purple" style="font-size:11px;">👑 主管權限: 繼承【部門主管】角色矩陣</span>
             </td>
             <td style="text-align: right;">
-              ${hasPermission('dept_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openDepartmentModal('${dept.id}')">⚙️ 編輯主管與組織</button>` : ''}
+              ${hasPermission('dept_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openDepartmentModal('${dept.id}')">⚙️ 編輯主管</button>` : ''}
               ${hasPermission('dept_edit') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteDepartment('${dept.id}')">刪除</button>` : ''}
             </td>
           </tr>
@@ -2038,7 +2032,7 @@
       document.getElementById('form-dept-id').value = id || '';
       const titleEl = document.getElementById('modal-dept-title');
       const delBtn = document.getElementById('btn-delete-dept');
-      if (titleEl) titleEl.innerText = id ? '🏛️ 編輯部門組織與主管設定' : '🏛️ 新增部門組織與主管設定';
+      if (titleEl) titleEl.innerText = id ? '🏛️ 編輯部門主管設定' : '🏛️ 新增部門與主管設定';
       if (delBtn) delBtn.style.display = id ? 'inline-block' : 'none';
 
       const mgrSelect = document.getElementById('form-dept-manager');
@@ -2053,15 +2047,11 @@
       }
 
       if (dept) {
-        document.getElementById('form-dept-code').value = dept.code || '';
         document.getElementById('form-dept-name').value = dept.name || '';
         if (mgrSelect) mgrSelect.value = dept.managerId || '';
-        document.getElementById('form-dept-desc').value = dept.description || '';
       } else {
-        document.getElementById('form-dept-code').value = '';
         document.getElementById('form-dept-name').value = '';
         if (mgrSelect && state.members[0]) mgrSelect.value = state.members[0].id;
-        document.getElementById('form-dept-desc').value = '';
       }
 
       openModal('modal-department');
@@ -2069,15 +2059,13 @@
 
     function saveDepartment() {
       const id = document.getElementById('form-dept-id').value;
-      const code = document.getElementById('form-dept-code').value.trim();
       const name = document.getElementById('form-dept-name').value.trim();
       const managerId = document.getElementById('form-dept-manager')?.value || '';
       const managerObj = (state.members || []).find(m => m.id === managerId);
       const managerName = managerObj ? managerObj.name : '';
-      const description = document.getElementById('form-dept-desc').value.trim();
 
-      if (!code || !name) {
-        alert('請填寫部門代碼與部門名稱！');
+      if (!name) {
+        alert('請填寫部門名稱！');
         return;
       }
 
@@ -2087,11 +2075,9 @@
         const dept = state.departments.find(d => d.id === id);
         if (dept) {
           const oldName = dept.name;
-          dept.code = code;
           dept.name = name;
           dept.managerId = managerId;
           dept.managerName = managerName;
-          dept.description = description;
 
           // Update member departmentName references
           (state.members || []).forEach(m => {
@@ -2102,13 +2088,13 @@
         }
         showToast(`部門「${name}」主管與設定已成功更新！`);
       } else {
+        const code = 'DEPT-' + (state.departments.length + 1);
         const newDept = {
           id: 'dept-' + Date.now(),
           code,
           name,
           managerId,
-          managerName,
-          description
+          managerName
         };
         state.departments.push(newDept);
         showToast(`已成功建立部門「${name}」！`);
