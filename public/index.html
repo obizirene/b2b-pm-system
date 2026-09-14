@@ -1182,6 +1182,11 @@
         </div>
         
         <div class="form-group">
+          <label class="form-label">期望交付日期 (Expected Delivery Date)</label>
+          <input type="date" id="form-task-expected-date" class="form-input">
+        </div>
+
+        <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
             <label class="form-label" style="margin:0; font-weight:700; color:#1e40af;">👥 各部門指派與預估排程工時 (Department Evaluations) *</label>
             <div style="display:flex; gap:6px; align-items:center;">
@@ -1192,11 +1197,6 @@
             <!-- 各部門指派與預估排程工時卡片將由程式動態產生 -->
           </div>
           <input type="hidden" id="form-task-assignee" value="">
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">期望交付日期 (Expected Delivery Date)</label>
-          <input type="date" id="form-task-expected-date" class="form-input">
         </div>
 
         <!-- 隱藏的全域排程與工時欄位 (確保系統邏輯 100% 相容) -->
