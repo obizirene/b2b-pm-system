@@ -1070,15 +1070,11 @@
 
         <div class="form-row" id="row-task-status-severity">
           <div class="form-group">
-            <label class="form-label">狀態 (Status) *</label>
-            <select id="form-task-status" class="form-select" onchange="onTaskStatusChange(this.value)">
-              <option value="規劃中">規劃中 (Planning)</option>
-              <option value="待評估">待評估 (Pending Evaluation)</option>
-              <option value="待執行">待執行 (Pending Execution)</option>
-              <option value="進行中">進行中 (In Progress)</option>
-              <option value="待測試">待測試 (Pending Testing)</option>
-              <option value="已完成">已完成 (Completed)</option>
-            </select>
+            <label class="form-label">狀態 (Status)</label>
+            <div id="form-task-status-container" style="display:flex; align-items:center; gap:8px; padding-top:4px;">
+              <span id="form-task-status-badge" class="badge badge-slate" style="font-size:13px; font-weight:700; padding:6px 14px;">規劃中</span>
+              <input type="hidden" id="form-task-status" value="規劃中">
+            </div>
           </div>
           <div class="form-group" id="form-group-task-severity" style="display: none;">
             <label class="form-label">危害等級</label>
