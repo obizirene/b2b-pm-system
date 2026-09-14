@@ -1809,6 +1809,7 @@
         });
         showToast('已新增團隊成員！');
       }
+      syncToFirebase();
       closeModal('modal-member');
       renderAll();
     }
@@ -2487,6 +2488,7 @@
         state.currentProjectId = newProjId; // Automatically switch to new project
         showToast('主專案建立成功，已切換至該專案！');
       }
+      syncToFirebase();
       closeModal('modal-project');
       renderAll();
     }
@@ -4526,8 +4528,8 @@
       const isManager = isCurrentRoleManager();
       const canEditTask = hasPermission('task_edit');
       
-      // 基礎內容（名稱、階段、大功能、類別、評估人、執行人、期望交付日）唯有在「規劃中」且為 PM/主管 時才可編輯
-      const canEditBasic = (status === '規劃中') && (isManager || canEditTask);
+      // 基礎內容：PM/主管或具備編輯權限者可隨時編輯；非 PM 角色僅在「規劃中」階段可編輯
+      const canEditBasic = (isManager || canEditTask) || (status === '規劃中');
 
       // 1. Core Metadata Selects & Inputs
       const projSel = document.getElementById('form-task-project');
@@ -4714,9 +4716,15 @@
       let badgeStyle = '';
 
       if (status === '規劃中') {
-        canEdit = false;
-        badgeText = `🔒 PM 規劃階段 (發布至「待評估」後由評估人「${estimator || '未指定'}」填寫排程與工時)`;
-        badgeStyle = 'background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;';
+        if (isManager) {
+          canEdit = true;
+          badgeText = '✏️ 主管權限可填寫預估排程與工時';
+          badgeStyle = 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;';
+        } else {
+          canEdit = false;
+          badgeText = `🔒 PM 規劃階段 (發布至「待評估」後由評估人「${estimator || '未指定'}」填寫排程與工時)`;
+          badgeStyle = 'background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;';
+        }
       } else if (status === '待評估') {
         if (isEstimator || isManager) {
           canEdit = true;
@@ -4727,18 +4735,16 @@
           badgeText = `🔒 鎖定 (僅限任務評估人「${estimator || '未指定'}」或主管填寫)`;
           badgeStyle = 'background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;';
         }
-      } else if (status === '待執行') {
-        canEdit = false;
-        badgeText = `🔒 待執行 (PM 點擊「開始執行」切換至進行中)`;
-        badgeStyle = 'background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0;';
-      } else if (status === '進行中') {
-        canEdit = false;
-        badgeText = `🔒 進行中 (執行人填報工時，點擊「執行完成」切換至待測試)`;
-        badgeStyle = 'background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0;';
-      } else if (status === '待測試') {
-        canEdit = false;
-        badgeText = `🔒 待測試 (PM 測試驗收後點擊「任務完成」切換至已完成)`;
-        badgeStyle = 'background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0;';
+      } else if (status === '待執行' || status === '進行中' || status === '待測試') {
+        if (isManager) {
+          canEdit = true;
+          badgeText = '✏️ 主管權限可調整預估排程與工時';
+          badgeStyle = 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;';
+        } else {
+          canEdit = false;
+          badgeText = `🔒 ${status} (唯讀模式)`;
+          badgeStyle = 'background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0;';
+        }
       } else {
         canEdit = false;
         badgeText = `🔒 已完成 (唯讀模式)`;
@@ -5088,6 +5094,11 @@
             if (!targetMod.tasks.some(t => t.id === id)) {
               targetMod.tasks.push(existingTask);
             }
+          } else {
+            const newTask = {
+              id, projectId, phaseId, moduleId: targetMod.id, wbs, title, type, estimator, assignees, assignee, expectedDeliveryDate, startDate, dueDate, estHours, actHours: 0, status, severity
+            };
+            targetMod.tasks.push(newTask);
           }
           showToast(`任務「${title}」已成功更新！`);
         } else {
@@ -5335,6 +5346,7 @@
         });
         showToast('問題與測試記錄已成功發佈！');
       }
+      syncToFirebase();
       closeModal('modal-issue');
       renderAll();
     }
