@@ -5073,9 +5073,23 @@
         }
         if (!targetMod.tasks) targetMod.tasks = [];
 
+        if (id) {
+          let existingTask = null;
+          state.phases.forEach(p => {
+            (p.modules || []).forEach(m => {
+              const idx = (m.tasks || []).findIndex(t => t.id === id);
+              if (idx !== -1) {
+                existingTask = m.tasks[idx];
+                if (m.id !== targetMod.id || p.id !== phase.id) {
+                  m.tasks.splice(idx, 1);
+                }
+              }
+            });
+          });
+
           if (existingTask) {
             existingTask.projectId = projectId;
-            existingTask.phaseId = phaseId;
+            existingTask.phaseId = phase.id;
             existingTask.moduleId = targetMod.id;
             existingTask.wbs = wbs;
             existingTask.title = title;
@@ -5095,26 +5109,16 @@
             }
           } else {
             const newTask = {
-              id, projectId, phaseId, moduleId: targetMod.id, wbs, title, type, estimator, assignees, assignee, expectedDeliveryDate, startDate, dueDate, estHours, actHours: 0, status, severity
+              id, projectId, phaseId: phase.id, moduleId: targetMod.id, wbs, title, type, estimator, assignees, assignee, expectedDeliveryDate, startDate, dueDate, estHours, actHours: 0, status, severity
             };
             targetMod.tasks.push(newTask);
           }
           showToast(`任務「${title}」已成功更新！`);
         } else {
-          const phase = state.phases.find(p => p.id === phaseId);
-          if (!phase) { alert('請先建立或選擇階段！'); return; }
-          if (!phase.modules) phase.modules = [];
-          let targetMod = phase.modules.find(m => m.id === moduleId);
-          if (!targetMod) {
-            targetMod = { id: 'mod-' + Date.now(), name: '通用核心模組', tasks: [] };
-            phase.modules.push(targetMod);
-          }
-          if (!targetMod.tasks) targetMod.tasks = [];
-
           const newTask = {
             id: 'task-' + Date.now(),
             projectId,
-            phaseId,
+            phaseId: phase.id,
             moduleId: targetMod.id,
             wbs,
             title,
