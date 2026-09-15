@@ -438,28 +438,33 @@
           </div>
         </div>
 
-        <!-- Sub Tabs: Employee Salaries / Project Costs / Department Costs -->
+        <!-- Sub Tabs: Job Grade Matrix / Project Costs / Department Costs -->
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
           <div class="tab-pill-group" style="margin:0;">
-            <button class="tab-pill active" id="tab-salary-emp" onclick="switchSalarySubTab('emp')">👥 員工薪資與個人成本明細</button>
+            <button class="tab-pill active" id="tab-salary-emp" onclick="switchSalarySubTab('emp')">📋 公司職級薪資矩陣 (Role Salary Matrix)</button>
             <button class="tab-pill" id="tab-salary-proj" onclick="switchSalarySubTab('proj')">📊 專案人力成本損益分析</button>
             <button class="tab-pill" id="tab-salary-dept" onclick="switchSalarySubTab('dept')">🏢 部門工時成本分攤</button>
           </div>
+          <div id="salary-matrix-actions">
+            <button class="btn btn-primary btn-sm" onclick="openJobGradeModal()">➕ 新增標準職級</button>
+          </div>
         </div>
 
-        <!-- Section 1: Employee Salaries Table -->
+        <!-- Section 1: Job Grade Salary Matrix Table -->
         <div id="salary-subtab-emp" class="table-card">
           <table>
             <thead>
               <tr>
-                <th>員工姓名</th>
-                <th>所屬部門</th>
-                <th>職務角色</th>
-                <th>月薪 (NT$)</th>
-                <th>折算時薪 (NT$/hr)</th>
-                <th>累計填報工時</th>
-                <th>專案工時總成本</th>
-                <th>備註</th>
+                <th>類別</th>
+                <th>職級名稱</th>
+                <th>月薪基準 (NT$)</th>
+                <th>年薪 (含年終)</th>
+                <th>日薪 (NT$)</th>
+                <th>基準時薪</th>
+                <th>人/時成本 (管銷40%)</th>
+                <th>專案報價時薪 (利潤33%)</th>
+                <th>時薪利潤</th>
+                <th>指派成員數</th>
                 <th style="text-align: right;">操作</th>
               </tr>
             </thead>
@@ -732,15 +737,8 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">職務角色 / 職稱 *</label>
-            <select id="form-member-role" class="form-select">
-              <option value="專案經理 (PM)">專案經理 (PM)</option>
-              <option value="全端工程師">全端工程師</option>
-              <option value="UI/UX 設計師">UI/UX 設計師</option>
-              <option value="QA 測試工程師">QA 測試工程師</option>
-              <option value="客戶窗口">客戶窗口</option>
-              <option value="系統管理員">系統管理員</option>
-            </select>
+            <label class="form-label required">職級角色 (Job Grade) *</label>
+            <select id="form-member-jobgrade" class="form-select"></select>
           </div>
           <div class="form-group">
             <label class="form-label">所屬組織部門 (Department)</label>
@@ -749,17 +747,13 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">月薪設定 (NT$ / 月)</label>
-            <input type="number" id="form-member-salary" class="form-input" placeholder="例如: 65000">
+            <label class="form-label">登入 Gmail / 授權 Email *</label>
+            <input type="email" id="form-member-email" class="form-input" placeholder="user@company.com">
           </div>
           <div class="form-group">
             <label class="form-label">聯絡電話</label>
             <input type="text" id="form-member-phone" class="form-input" placeholder="+886 912-345-678">
           </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">登入 Gmail / 授權 Email *</label>
-          <input type="email" id="form-member-email" class="form-input" placeholder="user@company.com">
         </div>
       </div>
       <div class="modal-footer">
@@ -798,7 +792,43 @@
     </div>
   </div>
 
-  <!-- Salary Modal (員工薪資結構與工時成本設定) -->
+  <!-- Job Grade Modal (標準職級薪資矩陣設定) -->
+  <div class="modal-overlay" id="modal-job-grade" onclick="handleOverlayClick(event, 'modal-job-grade')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-job-grade-title">💼 標準職級與薪資基準設定</div>
+        <button class="btn btn-secondary btn-xs" onclick="closeModal('modal-job-grade')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-grade-id">
+        <div class="form-group">
+          <label class="form-label required">職級類別 (Category) *</label>
+          <select id="form-grade-category" class="form-select">
+            <option value="工程類">工程類</option>
+            <option value="前端類">前端類</option>
+            <option value="設計類">設計類</option>
+            <option value="專案類">專案類</option>
+            <option value="管理與其他">管理與其他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">職級名稱 (Grade Title) *</label>
+          <input type="text" id="form-grade-name" class="form-input" placeholder="例如: 資深架構師">
+        </div>
+        <div class="form-group">
+          <label class="form-label required">月薪基準 (Base Monthly Salary NT$) *</label>
+          <input type="number" id="form-grade-salary" class="form-input" placeholder="例如: 80000">
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        <button type="button" class="btn btn-danger-outline btn-sm" id="btn-delete-grade" onclick="deleteJobGradeFromModal()" style="display:none;">🗑️ 刪除此職級</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary" onclick="closeModal('modal-job-grade')">取消</button>
+          <button class="btn btn-primary" onclick="saveJobGrade()">💾 儲存職級設定</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="modal-overlay" id="modal-salary" onclick="handleOverlayClick(event, 'modal-salary')">
     <div class="modal-box">
       <div class="modal-header">

@@ -818,12 +818,15 @@
               if (remoteData.departments) {
                 state.departments = Array.isArray(remoteData.departments) ? remoteData.departments : Object.values(remoteData.departments);
               }
+              if (remoteData.jobGrades) {
+                state.jobGrades = Array.isArray(remoteData.jobGrades) ? remoteData.jobGrades : Object.values(remoteData.jobGrades);
+              }
               if (!state.holidays || state.holidays.length === 0) {
                 state.holidays = getDefaultTaiwanHolidays();
               }
               sanitizeRoles();
               sanitizePhases();
-              sanitizeDepartmentsAndMembers();
+              sanitizeJobGradesAndMembers();
               if (remoteData.currentProjectId) state.currentProjectId = remoteData.currentProjectId;
               hasLoadedCloudData = true;
               renderAll(true);
@@ -860,6 +863,7 @@
           roles: state.roles,
           holidays: state.holidays,
           departments: state.departments,
+          jobGrades: state.jobGrades,
           currentProjectId: state.currentProjectId
         }).catch(err => console.error("Firebase Sync Error:", err));
       }
@@ -1692,7 +1696,7 @@
     }
 
     function renderAll(skipCloudSync = false) {
-      sanitizeDepartmentsAndMembers();
+      sanitizeJobGradesAndMembers();
       state.tasks = getFlatTasks();
       recalculateActualHoursFromWorkLogs();
       updateRoleSimulatorOptions();
@@ -1923,6 +1927,8 @@
           `<span class="badge ${isDeptManager ? 'badge-warning' : 'badge-info'}" style="font-size:11px; font-weight:700;">${isDeptManager ? '👑 部門主管' : '👤 部門成員'} (${effectiveDept.code || 'DEPT'})</span><div style="font-size:11px; color:#64748b; margin-top:2px;">${effectiveDept.name}</div>` : 
           '<span style="color:#94a3b8; font-size:12px;">未分派部門</span>';
 
+        const { grade, metrics } = getMemberJobGradeMetrics(m);
+
         return `
           <tr>
             <td>
@@ -1931,10 +1937,12 @@
             </td>
             <td>${deptBadgeHtml}</td>
             <td>
-              <span class="badge badge-purple" style="font-weight:700;">${m.role}</span>
+              <span class="badge badge-purple" style="font-weight:700;">${grade ? grade.name : m.role}</span>
+              ${grade ? `<div style="font-size:10px; color:#64748b;">${grade.category || ''}</div>` : ''}
             </td>
             <td style="font-family:monospace; font-weight:700; color:#047857;">
-              NT$ ${(Number(m.monthlySalary) || 60000).toLocaleString()} <small style="color:#64748b; font-weight:normal;">/月</small>
+              NT$ ${metrics.monthlySalary.toLocaleString()} <small style="color:#64748b; font-weight:normal;">/月</small>
+              <div style="font-size:11px; color:#2563eb; font-weight:normal;">人/時成本 NT$ ${metrics.overheadHourlyCost}/h</div>
             </td>
             <td style="font-family:monospace; color:#2563eb;">${m.email}</td>
             <td style="font-family:monospace; color:#475569;">${m.phone || '-'}</td>
@@ -1954,9 +1962,13 @@
       document.getElementById('form-member-id').value = id || '';
       document.getElementById('modal-member-title').innerText = id ? '編輯員工成員資料' : '新增團隊員工 / 成員';
       
-      const roleSelect = document.getElementById('form-member-role');
-      if (roleSelect) {
-        roleSelect.innerHTML = (state.roles || []).map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+      const gradeSelect = document.getElementById('form-member-jobgrade');
+      if (gradeSelect) {
+        const grades = state.jobGrades || getDefaultJobGrades();
+        gradeSelect.innerHTML = grades.map(g => {
+          const m = calculateJobGradeMetrics(g);
+          return `<option value="${g.id}">[${g.category}] ${g.name} (月薪 NT$ ${m.monthlySalary.toLocaleString()} | 人時成本 NT$ ${m.overheadHourlyCost}/h)</option>`;
+        }).join('');
       }
 
       const deptSelect = document.getElementById('form-member-department');
@@ -1969,23 +1981,20 @@
         const m = state.members.find(x => x.id === id);
         if (m) {
           document.getElementById('form-member-name').value = m.name;
-          if (roleSelect) roleSelect.value = m.role;
+          const { grade } = getMemberJobGradeMetrics(m);
+          if (gradeSelect && grade) gradeSelect.value = grade.id;
           if (deptSelect) deptSelect.value = m.departmentId || '';
           document.getElementById('form-member-email').value = m.email;
           document.getElementById('form-member-phone').value = m.phone || '';
-          const salEl = document.getElementById('form-member-salary');
-          if (salEl) salEl.value = m.monthlySalary || 60000;
         }
       } else {
         document.getElementById('form-member-name').value = '';
-        if (roleSelect && state.roles && state.roles[0]) {
-          roleSelect.value = state.roles[0].name;
+        if (gradeSelect && state.jobGrades && state.jobGrades[0]) {
+          gradeSelect.value = state.jobGrades[0].id;
         }
         if (deptSelect) deptSelect.value = '';
         document.getElementById('form-member-email').value = '';
         document.getElementById('form-member-phone').value = '';
-        const salEl = document.getElementById('form-member-salary');
-        if (salEl) salEl.value = 60000;
       }
       openModal('modal-member');
     }
@@ -1993,12 +2002,16 @@
     function saveMember() {
       const id = document.getElementById('form-member-id').value;
       const name = document.getElementById('form-member-name').value.trim();
-      const role = document.getElementById('form-member-role').value;
+      const jobGradeId = document.getElementById('form-member-jobgrade')?.value || '';
+      const gradeObj = (state.jobGrades || []).find(g => g.id === jobGradeId) || (state.jobGrades || [])[0];
+      const role = gradeObj ? gradeObj.name : '工程師';
+      const metrics = calculateJobGradeMetrics(gradeObj || { monthlySalary: 60000 });
+      const monthlySalary = metrics.monthlySalary;
+      const hourlyRate = metrics.overheadHourlyCost;
+
       const departmentId = document.getElementById('form-member-department')?.value || '';
       const deptObj = (state.departments || []).find(d => d.id === departmentId || d.code === departmentId);
       const departmentName = deptObj ? deptObj.name : '';
-      const monthlySalary = Number(document.getElementById('form-member-salary')?.value) || 60000;
-      const hourlyRate = Math.round(monthlySalary / 160);
       const email = document.getElementById('form-member-email').value.trim();
       const phone = document.getElementById('form-member-phone').value.trim();
 
@@ -2028,6 +2041,7 @@
           }
 
           m.name = name;
+          m.jobGradeId = jobGradeId;
           m.role = role;
           m.departmentId = departmentId;
           m.departmentName = departmentName;
@@ -2068,12 +2082,12 @@
       } else {
         state.members.push({
           id: 'user-' + Date.now(),
-          name, role, departmentId, departmentName, monthlySalary, hourlyRate, email, phone, effectiveDate: TODAY, salaryNotes: ''
+          name, jobGradeId, role, departmentId, departmentName, monthlySalary, hourlyRate, email, phone, effectiveDate: TODAY, salaryNotes: ''
         });
         showToast('已新增團隊成員！');
       }
 
-      sanitizeDepartmentsAndMembers();
+      sanitizeJobGradesAndMembers();
       syncToFirebase();
       closeModal('modal-member');
       renderAll();
@@ -2270,12 +2284,71 @@
       renderSalariesPage();
     }
 
-    function autoCalculateHourlyRate(monthlyVal) {
-      const monthly = Number(monthlyVal) || 0;
-      const hourlyInput = document.getElementById('form-salary-hourly');
-      if (hourlyInput && monthly > 0) {
-        hourlyInput.value = Math.round(monthly / 160);
+    function getDefaultJobGrades() {
+      return [
+        // 工程類
+        { id: 'grade-eng-mgr', category: '工程類', name: '工程主管', monthlySalary: 100000 },
+        { id: 'grade-eng-sr', category: '工程類', name: '資深工程師', monthlySalary: 80000 },
+        { id: 'grade-eng-mid', category: '工程類', name: '一般工程師', monthlySalary: 60000 },
+        { id: 'grade-eng-jr', category: '工程類', name: '助理工程師', monthlySalary: 45000 },
+        // 前端類
+        { id: 'grade-fe-mgr', category: '前端類', name: '前端主管', monthlySalary: 95000 },
+        { id: 'grade-fe-sr', category: '前端類', name: '資深前端', monthlySalary: 78000 },
+        { id: 'grade-fe-mid', category: '前端類', name: '一般前端', monthlySalary: 58000 },
+        { id: 'grade-fe-jr', category: '前端類', name: '助理前端', monthlySalary: 42000 },
+        // 設計類
+        { id: 'grade-des-mgr', category: '設計類', name: '設計主管', monthlySalary: 90000 },
+        { id: 'grade-des-sr', category: '設計類', name: '資深設計師', monthlySalary: 72000 },
+        { id: 'grade-des-mid', category: '設計類', name: '一般設計師', monthlySalary: 52000 },
+        // 專案類
+        { id: 'grade-pm-mgr', category: '專案類', name: '專案主管', monthlySalary: 95000 },
+        { id: 'grade-pm-sr', category: '專案類', name: '資深專案', monthlySalary: 75000 },
+        { id: 'grade-pm-mid', category: '專案類', name: '一般專案', monthlySalary: 58000 },
+        { id: 'grade-pm-jr', category: '專案類', name: '助理專案', monthlySalary: 42000 }
+      ];
+    }
+
+    function calculateJobGradeMetrics(grade) {
+      const monthlySalary = Number(grade?.monthlySalary) || 0;
+      const annualSalary = Math.round(monthlySalary * 13);
+      const dailyRate = Math.round(monthlySalary / 21.75);
+      const baseHourlyRate = Math.round(dailyRate / 8);
+      const overheadHourlyCost = Math.round(baseHourlyRate * 1.4);
+      const billingHourlyRate = Math.round(overheadHourlyCost * 1.5);
+      const profitHourly = billingHourlyRate - overheadHourlyCost;
+
+      return {
+        monthlySalary,
+        annualSalary,
+        dailyRate,
+        baseHourlyRate,
+        overheadHourlyCost,
+        billingHourlyRate,
+        profitHourly
+      };
+    }
+
+    function getMemberJobGrade(m) {
+      if (!m) return null;
+      const grades = state.jobGrades || [];
+      if (m.jobGradeId) {
+        const found = grades.find(g => g.id === m.jobGradeId);
+        if (found) return found;
       }
+      if (m.role) {
+        const found = grades.find(g => g.name === m.role || (m.role && m.role.includes(g.name)) || (g.name && g.name.includes(m.role)));
+        if (found) return found;
+      }
+      return grades[0] || null;
+    }
+
+    function getMemberJobGradeMetrics(m) {
+      const grade = getMemberJobGrade(m);
+      if (grade) {
+        return { grade, metrics: calculateJobGradeMetrics(grade) };
+      }
+      const defaultMetrics = calculateJobGradeMetrics({ monthlySalary: 60000 });
+      return { grade: { name: '一般成員', monthlySalary: 60000, category: '其他' }, metrics: defaultMetrics };
     }
 
     function renderSalariesPage() {
@@ -2283,10 +2356,18 @@
       const pageSalaries = document.getElementById('page-salaries');
       if (!pageSalaries) return;
 
-      // Calculate Global KPIs
       const members = state.members || [];
-      const totalMonthlyBudget = members.reduce((sum, m) => sum + (Number(m.monthlySalary) || 60000), 0);
-      const avgHourlyRate = members.length > 0 ? Math.round((members.reduce((sum, m) => sum + (Number(m.hourlyRate) || Math.round((Number(m.monthlySalary) || 60000)/160)), 0)) / members.length) : 375;
+      
+      // Calculate Global KPIs
+      const totalMonthlyBudget = members.reduce((sum, m) => {
+        const { metrics } = getMemberJobGradeMetrics(m);
+        return sum + metrics.monthlySalary;
+      }, 0);
+
+      const avgHourlyRate = members.length > 0 ? Math.round((members.reduce((sum, m) => {
+        const { metrics } = getMemberJobGradeMetrics(m);
+        return sum + metrics.overheadHourlyCost;
+      }, 0)) / members.length) : 375;
 
       // Historical Total Project Labor Cost
       let totalLaborCost = 0;
@@ -2308,7 +2389,10 @@
         let taskHourlyRate = 450;
         if (assignees.length > 0) {
           const m = members.find(x => x.name === assignees[0] || assignees[0].includes(x.name));
-          if (m) taskHourlyRate = Number(m.hourlyRate) || Math.round((Number(m.monthlySalary) || 60000) / 160);
+          if (m) {
+            const { metrics } = getMemberJobGradeMetrics(m);
+            taskHourlyRate = metrics.overheadHourlyCost;
+          }
         }
         projCostMap[pId].estCost += (estH * taskHourlyRate);
       });
@@ -2321,7 +2405,8 @@
         let memberRate = 450;
         const m = members.find(x => x.name === w.userName || x.id === w.userId);
         if (m) {
-          memberRate = Number(m.hourlyRate) || Math.round((Number(m.monthlySalary) || 60000) / 160);
+          const { metrics } = getMemberJobGradeMetrics(m);
+          memberRate = metrics.overheadHourlyCost;
         }
         const cost = hours * memberRate;
         totalLaborCost += cost;
@@ -2352,39 +2437,35 @@
       if (kpiTotalCost) kpiTotalCost.innerText = `NT$ ${totalLaborCost.toLocaleString()}`;
       if (kpiTopProj) kpiTopProj.innerText = topCostProjName;
 
-      // Render Tab 1: Employee Salaries Table
+      // Render Tab 1: Job Grade Salary Matrix Table
       const empTbody = document.getElementById('salaries-emp-table-body');
       if (empTbody) {
         if (!canView) {
-          empTbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:32px; color:#64748b;">🔒 薪資專區屬機密資料，您目前無檢視權限 (salary_view)</td></tr>`;
+          empTbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:32px; color:#64748b;">🔒 薪資專區屬機密資料，您目前無檢視權限 (salary_view)</td></tr>`;
         } else {
-          empTbody.innerHTML = members.map(m => {
-            const monthly = Number(m.monthlySalary) || 60000;
-            const hourly = Number(m.hourlyRate) || Math.round(monthly / 160);
-            
-            // Total logged hours by member
-            const memberLogs = (state.workLogs || []).filter(w => w.userName === m.name || w.userId === m.id);
-            const loggedH = memberLogs.reduce((sum, l) => sum + (Number(l.hours) || 0), 0);
-            const totalMemberCost = loggedH * hourly;
-
-            const dept = (state.departments || []).find(d => d.id === m.departmentId || d.name === m.departmentId);
-            const deptName = dept ? dept.name : (m.departmentName || '未分派');
+          const grades = state.jobGrades || getDefaultJobGrades();
+          empTbody.innerHTML = grades.map(g => {
+            const m = calculateJobGradeMetrics(g);
+            const assignedMembers = (members || []).filter(u => u.jobGradeId === g.id || u.role === g.name);
 
             return `
               <tr>
-                <td>
-                  <div style="font-weight:700; color:#0f172a;">${m.name}</div>
-                  <div style="font-size:11px; color:#64748b;">${m.email}</div>
+                <td><span class="badge badge-info" style="font-size:11px;">${g.category || '一般'}</span></td>
+                <td><div style="font-weight:700; color:#0f172a; font-size:14px;">${g.name}</div></td>
+                <td style="font-family:monospace; font-weight:800; color:#047857; font-size:14px;">
+                  NT$ ${m.monthlySalary.toLocaleString()}
+                  ${hasPermission('salary_edit') ? `<button class="btn btn-secondary btn-xs" style="margin-left:6px; font-size:10px;" onclick="quickEditGradeSalary('${g.id}')">✏️ 編輯月薪</button>` : ''}
                 </td>
-                <td><span class="badge badge-info" style="font-size:11px;">${deptName}</span></td>
-                <td><span class="badge badge-purple">${m.role}</span></td>
-                <td style="font-family:monospace; font-weight:800; color:#047857; font-size:14px;">NT$ ${monthly.toLocaleString()}</td>
-                <td style="font-family:monospace; font-weight:700; color:#2563eb;">NT$ ${hourly}/hr</td>
-                <td style="font-family:monospace; font-weight:700;">${loggedH} h</td>
-                <td style="font-family:monospace; font-weight:800; color:#b45309;">NT$ ${totalMemberCost.toLocaleString()}</td>
-                <td style="font-size:11px; color:#64748b;">${m.salaryNotes || '-'}</td>
+                <td style="font-family:monospace; font-weight:700; color:#475569;">NT$ ${m.annualSalary.toLocaleString()}</td>
+                <td style="font-family:monospace;">NT$ ${m.dailyRate.toLocaleString()}</td>
+                <td style="font-family:monospace;">NT$ ${m.baseHourlyRate}/h</td>
+                <td style="font-family:monospace; font-weight:700; color:#2563eb;">NT$ ${m.overheadHourlyCost}/h</td>
+                <td style="font-family:monospace; font-weight:700; color:#d97706;">NT$ ${m.billingHourlyRate}/h</td>
+                <td style="font-family:monospace; font-weight:800; color:#10b981;">+ NT$ ${m.profitHourly}/h</td>
+                <td><span class="badge badge-slate" style="font-weight:700;">👥 ${assignedMembers.length} 位成員</span></td>
                 <td style="text-align:right;">
-                  ${hasPermission('salary_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openSalaryModal('${m.id}')">調整薪資</button>` : '<span style="font-size:11px; color:#94a3b8;">🔒 唯讀</span>'}
+                  ${hasPermission('salary_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openJobGradeModal('${g.id}')">編輯職級</button>` : ''}
+                  ${hasPermission('salary_edit') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteJobGrade('${g.id}')">刪除</button>` : ''}
                 </td>
               </tr>
             `;
@@ -2437,14 +2518,18 @@
         } else {
           deptTbody.innerHTML = (state.departments || []).map(dept => {
             const deptMembers = members.filter(m => m.departmentId === dept.id || m.departmentName === dept.name);
-            const deptMonthlyTotal = deptMembers.reduce((sum, m) => sum + (Number(m.monthlySalary) || 60000), 0);
+            const deptMonthlyTotal = deptMembers.reduce((sum, m) => {
+              const { metrics } = getMemberJobGradeMetrics(m);
+              return sum + metrics.monthlySalary;
+            }, 0);
             
             // Total hours & labor cost by department members
             let deptHours = 0;
             let deptLaborCost = 0;
 
             deptMembers.forEach(m => {
-              const hourly = Number(m.hourlyRate) || Math.round((Number(m.monthlySalary) || 60000) / 160);
+              const { metrics } = getMemberJobGradeMetrics(m);
+              const hourly = metrics.overheadHourlyCost;
               const logs = (state.workLogs || []).filter(w => w.userName === m.name || w.userId === m.id);
               const loggedH = logs.reduce((sum, l) => sum + (Number(l.hours) || 0), 0);
               deptHours += loggedH;
@@ -2475,6 +2560,105 @@
             `;
           }).join('');
         }
+      }
+    }
+
+    function openJobGradeModal(id = null) {
+      document.getElementById('form-grade-id').value = id || '';
+      const titleEl = document.getElementById('modal-job-grade-title');
+      const delBtn = document.getElementById('btn-delete-grade');
+      if (titleEl) titleEl.innerText = id ? '💼 編輯標準職級與薪資基準' : '💼 新增標準職級與薪資基準';
+      if (delBtn) delBtn.style.display = id ? 'inline-block' : 'none';
+
+      let grade = null;
+      if (id) {
+        grade = (state.jobGrades || []).find(g => g.id === id);
+      }
+
+      if (grade) {
+        document.getElementById('form-grade-category').value = grade.category || '工程類';
+        document.getElementById('form-grade-name').value = grade.name || '';
+        document.getElementById('form-grade-salary').value = grade.monthlySalary || 60000;
+      } else {
+        document.getElementById('form-grade-category').value = '工程類';
+        document.getElementById('form-grade-name').value = '';
+        document.getElementById('form-grade-salary').value = 60000;
+      }
+
+      openModal('modal-job-grade');
+    }
+
+    function saveJobGrade() {
+      const id = document.getElementById('form-grade-id').value;
+      const category = document.getElementById('form-grade-category').value;
+      const name = document.getElementById('form-grade-name').value.trim();
+      const monthlySalary = Number(document.getElementById('form-grade-salary').value) || 60000;
+
+      if (!name) {
+        alert('請填寫職級名稱！');
+        return;
+      }
+
+      if (!state.jobGrades) state.jobGrades = getDefaultJobGrades();
+
+      if (id) {
+        const grade = state.jobGrades.find(g => g.id === id);
+        if (grade) {
+          grade.category = category;
+          grade.name = name;
+          grade.monthlySalary = monthlySalary;
+        }
+        showToast(`職級「${name}」月薪基準已成功更新！`);
+      } else {
+        const newGrade = {
+          id: 'grade-' + Date.now(),
+          category,
+          name,
+          monthlySalary
+        };
+        state.jobGrades.push(newGrade);
+        showToast(`已成功新增職級「${name}」！`);
+      }
+
+      sanitizeJobGradesAndMembers();
+      syncToFirebase();
+      closeModal('modal-job-grade');
+      renderAll();
+    }
+
+    function quickEditGradeSalary(id) {
+      const grade = (state.jobGrades || []).find(g => g.id === id);
+      if (!grade) return;
+      const val = prompt(`請輸入職級「${grade.name}」的新月薪基準 (NT$):`, grade.monthlySalary);
+      if (val !== null && val.trim() !== '') {
+        const num = Number(val);
+        if (!isNaN(num) && num > 0) {
+          grade.monthlySalary = num;
+          sanitizeJobGradesAndMembers();
+          syncToFirebase();
+          renderAll();
+          showToast(`「${grade.name}」月薪已更新為 NT$ ${num.toLocaleString()}`);
+        } else {
+          alert('請輸入有效的月薪數字！');
+        }
+      }
+    }
+
+    function deleteJobGradeFromModal() {
+      const id = document.getElementById('form-grade-id').value;
+      if (id) deleteJobGrade(id);
+    }
+
+    function deleteJobGrade(id) {
+      const grade = (state.jobGrades || []).find(g => g.id === id);
+      if (!grade) return;
+      if (confirm(`確定要刪除職級「${grade.name}」嗎？`)) {
+        state.jobGrades = (state.jobGrades || []).filter(g => g.id !== id);
+        sanitizeJobGradesAndMembers();
+        syncToFirebase();
+        closeModal('modal-job-grade');
+        renderAll();
+        showToast(`已刪除職級「${grade.name}」`);
       }
     }
 
@@ -2540,6 +2724,28 @@
       const id = typeof r === 'string' ? r : (r.id || '');
       const name = typeof r === 'string' ? r : (r.name || '');
       return id === 'role-admin' || name === '系統管理員';
+    }
+
+    function sanitizeJobGradesAndMembers() {
+      if (!state.jobGrades || !Array.isArray(state.jobGrades) || state.jobGrades.length === 0) {
+        state.jobGrades = getDefaultJobGrades();
+      }
+      if (!state.members || !Array.isArray(state.members)) {
+        state.members = [];
+      }
+
+      state.members.forEach(m => {
+        if (!m) return;
+        const { grade, metrics } = getMemberJobGradeMetrics(m);
+        if (grade && grade.id) {
+          m.jobGradeId = grade.id;
+          m.role = grade.name;
+        }
+        m.monthlySalary = metrics.monthlySalary;
+        m.hourlyRate = metrics.overheadHourlyCost;
+      });
+
+      sanitizeDepartmentsAndMembers();
     }
 
     function sanitizeDepartmentsAndMembers() {
