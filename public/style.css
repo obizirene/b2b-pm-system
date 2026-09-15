@@ -309,7 +309,8 @@
     .gantt-left-row { height: 40px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; font-size: 12px; user-select: none; position: relative; transition: background 0.15s; }
     .gantt-left-row.level-1 { background: #eff6ff; font-weight: 800; color: #1e40af; border-left: 4px solid #1e3a8a; }
     .gantt-left-row.level-2 { background: #f8fafc; font-weight: 700; padding-left: 24px; color: #0369a1; border-left: 4px solid #38bdf8; }
-    .gantt-left-row.level-3 { padding-left: 36px; color: #334155; }
+    .gantt-left-row.level-3 { padding-left: 36px; color: #334155; font-weight: 600; }
+    .gantt-left-row.level-4 { padding-left: 52px; color: #475569; background: #fafafa; font-size: 11.5px; border-left: 2px solid #e2e8f0; }
     .gantt-left-row:hover { background-color: #f1f5f9; }
     .gantt-left-row.tree-row-dragging { opacity: 0.35; background: #cbd5e1 !important; }
     .gantt-left-row.drop-indicator-top::before {
