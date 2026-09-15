@@ -2592,16 +2592,16 @@
       const empTbody = document.getElementById('salaries-emp-table-body');
       if (empTbody) {
         if (!canView) {
-          empTbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding:32px; color:#64748b;">🔒 薪資專區屬機密資料，您目前無檢視權限 (salary_view)</td></tr>`;
+          empTbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:32px; color:#64748b;">🔒 薪資專區屬機密資料，您目前無檢視權限 (salary_view)</td></tr>`;
         } else {
           const grades = state.jobGrades || getDefaultJobGrades();
           empTbody.innerHTML = grades.map(g => {
             const m = calculateJobGradeMetrics(g);
-            const assignedMembers = (members || []).filter(u => u.jobGradeId === g.id || u.role === g.name);
+            const deptLabel = (g.category || '一般').replace(/類$/, '部');
 
             return `
               <tr>
-                <td><span class="badge badge-info" style="font-size:11px;">${g.category || '一般'}</span></td>
+                <td><span class="badge badge-info" style="font-size:11px; font-weight:700;">${deptLabel}</span></td>
                 <td><div style="font-weight:700; color:#0f172a; font-size:14px;">${g.name}</div></td>
                 <td style="font-family:monospace;">
                   <div style="display:flex; align-items:center; gap:4px;">
@@ -2609,7 +2609,7 @@
                     <input type="number" 
                            id="input-salary-${g.id}" 
                            class="form-input form-input-sm" 
-                           style="width:100px; font-family:monospace; font-weight:800; color:#047857; padding:4px 8px;" 
+                           style="width:90px; font-family:monospace; font-weight:800; color:#047857; padding:4px 8px;" 
                            value="${m.monthlySalary}" 
                            ${hasPermission('salary_edit') ? '' : 'disabled'} 
                            oninput="handleGradeSalaryInput('${g.id}', this.value)" 
@@ -2621,12 +2621,11 @@
                 <td style="font-family:monospace;"><span id="cell-hourly-${g.id}">NT$ ${m.baseHourlyRate}/h</span></td>
                 <td style="font-family:monospace; font-weight:700; color:#2563eb;"><span id="cell-cost-${g.id}">NT$ ${m.overheadHourlyCost}/h</span></td>
                 <td style="font-family:monospace; font-weight:700; color:#d97706;"><span id="cell-billing-${g.id}">NT$ ${m.billingHourlyRate}/h</span></td>
-                <td style="font-family:monospace; font-weight:800; color:#10b981;"><span id="cell-profit-${g.id}">+ NT$ ${m.profitHourly}/h</span></td>
-                <td style="font-family:monospace; font-weight:700; color:#64748b;"><span id="cell-margin-${g.id}">33.33%</span></td>
-                <td><span class="badge badge-slate" style="font-weight:700;">👥 ${assignedMembers.length} 位成員</span></td>
-                <td style="text-align:right;">
-                  ${hasPermission('salary_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openJobGradeModal('${g.id}')">編輯職級</button>` : ''}
-                  ${hasPermission('salary_edit') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteJobGrade('${g.id}')">刪除</button>` : ''}
+                <td style="text-align:right; white-space:nowrap;">
+                  <div style="display:inline-flex; justify-content:flex-end; align-items:center; gap:6px;">
+                    ${hasPermission('salary_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openJobGradeModal('${g.id}')">編輯</button>` : ''}
+                    ${hasPermission('salary_edit') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteJobGrade('${g.id}')">刪除</button>` : ''}
+                  </div>
                 </td>
               </tr>
             `;
