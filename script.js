@@ -815,11 +815,15 @@
               if (remoteData.holidays) {
                 state.holidays = Array.isArray(remoteData.holidays) ? remoteData.holidays : Object.values(remoteData.holidays);
               }
+              if (remoteData.departments) {
+                state.departments = Array.isArray(remoteData.departments) ? remoteData.departments : Object.values(remoteData.departments);
+              }
               if (!state.holidays || state.holidays.length === 0) {
                 state.holidays = getDefaultTaiwanHolidays();
               }
               sanitizeRoles();
               sanitizePhases();
+              sanitizeDepartmentsAndMembers();
               if (remoteData.currentProjectId) state.currentProjectId = remoteData.currentProjectId;
               hasLoadedCloudData = true;
               renderAll(true);
@@ -855,6 +859,7 @@
           issues: state.issues,
           roles: state.roles,
           holidays: state.holidays,
+          departments: state.departments,
           currentProjectId: state.currentProjectId
         }).catch(err => console.error("Firebase Sync Error:", err));
       }
@@ -1687,6 +1692,7 @@
     }
 
     function renderAll(skipCloudSync = false) {
+      sanitizeDepartmentsAndMembers();
       state.tasks = getFlatTasks();
       recalculateActualHoursFromWorkLogs();
       updateRoleSimulatorOptions();
@@ -1904,10 +1910,17 @@
       if (!tbody) return;
       tbody.innerHTML = state.members.map(m => {
         const assignedProjects = state.projects.filter(p => (p.teamMembers || []).includes(m.id));
-        const dept = (state.departments || []).find(d => d.id === m.departmentId || d.name === m.departmentId);
-        const isDeptManager = dept && (dept.managerId === m.id || dept.managerName === m.name);
-        const deptBadgeHtml = dept ? 
-          `<span class="badge ${isDeptManager ? 'badge-warning' : 'badge-info'}" style="font-size:11px; font-weight:700;">${isDeptManager ? '👑 部門主管' : '👤 部門成員'} (${dept.code})</span><div style="font-size:11px; color:#64748b; margin-top:2px;">${dept.name}</div>` : 
+        const dept = (state.departments || []).find(d => 
+          d.id === m.departmentId || d.code === m.departmentId || d.name === m.departmentId || d.name === m.departmentName
+        );
+        const managedDept = (state.departments || []).find(d => 
+          d.managerId === m.id || (d.managerName && m.name && (d.managerName === m.name || d.managerName.includes(m.name) || m.name.includes(d.managerName)))
+        );
+        const effectiveDept = dept || managedDept;
+        const isDeptManager = !!managedDept && (!dept || managedDept.id === dept.id);
+
+        const deptBadgeHtml = effectiveDept ? 
+          `<span class="badge ${isDeptManager ? 'badge-warning' : 'badge-info'}" style="font-size:11px; font-weight:700;">${isDeptManager ? '👑 部門主管' : '👤 部門成員'} (${effectiveDept.code || 'DEPT'})</span><div style="font-size:11px; color:#64748b; margin-top:2px;">${effectiveDept.name}</div>` : 
           '<span style="color:#94a3b8; font-size:12px;">未分派部門</span>';
 
         return `
@@ -1982,7 +1995,7 @@
       const name = document.getElementById('form-member-name').value.trim();
       const role = document.getElementById('form-member-role').value;
       const departmentId = document.getElementById('form-member-department')?.value || '';
-      const deptObj = (state.departments || []).find(d => d.id === departmentId);
+      const deptObj = (state.departments || []).find(d => d.id === departmentId || d.code === departmentId);
       const departmentName = deptObj ? deptObj.name : '';
       const monthlySalary = Number(document.getElementById('form-member-salary')?.value) || 60000;
       const hourlyRate = Math.round(monthlySalary / 160);
@@ -2042,6 +2055,8 @@
         });
         showToast('已新增團隊成員！');
       }
+
+      sanitizeDepartmentsAndMembers();
       syncToFirebase();
       closeModal('modal-member');
       renderAll();
@@ -2064,7 +2079,13 @@
       if (!tbody) return;
       tbody.innerHTML = (state.departments || []).map(dept => {
         const managerName = getDepartmentManagerName(dept);
-        const deptMembers = (state.members || []).filter(m => m.departmentId === dept.id || m.departmentName === dept.name);
+        const deptMembers = (state.members || []).filter(m => 
+          m.departmentId === dept.id || 
+          m.departmentName === dept.name || 
+          m.departmentId === dept.code ||
+          dept.managerId === m.id ||
+          (dept.managerName && m.name && (dept.managerName === m.name || dept.managerName.includes(m.name)))
+        );
 
         return `
           <tr>
@@ -2141,8 +2162,9 @@
 
       if (!state.departments) state.departments = [];
 
+      let dept;
       if (id) {
-        const dept = state.departments.find(d => d.id === id);
+        dept = state.departments.find(d => d.id === id);
         if (dept) {
           const oldName = dept.name;
           dept.name = name;
@@ -2159,17 +2181,23 @@
         showToast(`部門「${name}」主管與設定已成功更新！`);
       } else {
         const code = 'DEPT-' + (state.departments.length + 1);
-        const newDept = {
+        dept = {
           id: 'dept-' + Date.now(),
           code,
           name,
           managerId,
           managerName
         };
-        state.departments.push(newDept);
+        state.departments.push(dept);
         showToast(`已成功建立部門「${name}」！`);
       }
 
+      if (managerObj && dept) {
+        managerObj.departmentId = dept.id;
+        managerObj.departmentName = dept.name;
+      }
+
+      sanitizeDepartmentsAndMembers();
       syncToFirebase();
       closeModal('modal-department');
       renderAll();
@@ -2482,6 +2510,60 @@
       const id = typeof r === 'string' ? r : (r.id || '');
       const name = typeof r === 'string' ? r : (r.name || '');
       return id === 'role-admin' || name === '系統管理員';
+    }
+
+    function sanitizeDepartmentsAndMembers() {
+      if (!state.departments) {
+        state.departments = [];
+      } else if (!Array.isArray(state.departments)) {
+        state.departments = Object.values(state.departments);
+      }
+      if (!state.members) {
+        state.members = [];
+      } else if (!Array.isArray(state.members)) {
+        state.members = Object.values(state.members);
+      }
+
+      // 1. Bidirectional sync between department manager and member
+      state.departments.forEach(dept => {
+        if (!dept) return;
+
+        let mgr = null;
+        if (dept.managerId) {
+          mgr = state.members.find(m => m && m.id === dept.managerId);
+        }
+        if (!mgr && dept.managerName) {
+          mgr = state.members.find(m => 
+            m && (m.name === dept.managerName || 
+            (m.name && m.name.includes(dept.managerName)) || 
+            (dept.managerName && dept.managerName.includes(m.name)))
+          );
+        }
+
+        if (mgr) {
+          mgr.departmentId = dept.id;
+          mgr.departmentName = dept.name;
+          dept.managerId = mgr.id;
+          dept.managerName = mgr.name;
+        }
+      });
+
+      // 2. Normalize members departmentId & departmentName to match state.departments
+      state.members.forEach(m => {
+        if (!m) return;
+        if (m.departmentId || m.departmentName) {
+          const matchedDept = state.departments.find(d => 
+            d && (d.id === m.departmentId || 
+            d.code === m.departmentId || 
+            d.name === m.departmentId || 
+            d.name === m.departmentName)
+          );
+          if (matchedDept) {
+            m.departmentId = matchedDept.id;
+            m.departmentName = matchedDept.name;
+          }
+        }
+      });
     }
 
     function sanitizeRoles() {
