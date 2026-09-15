@@ -732,23 +732,34 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="form-member-id">
-        <div class="form-group">
-          <label class="form-label">員工姓名 *</label>
+        <!-- Row 1: Full width Name -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label required">員工姓名 *</label>
           <input type="text" id="form-member-name" class="form-input" placeholder="例如: 謝技術主管 (John Hsieh)">
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label required">職級角色 (Job Grade) *</label>
-            <select id="form-member-jobgrade" class="form-select"></select>
-          </div>
+
+        <!-- Row 2: Department + System Role -->
+        <div class="form-row" style="margin-bottom:14px;">
           <div class="form-group">
             <label class="form-label">所屬組織部門 (Department)</label>
             <select id="form-member-department" class="form-select"></select>
           </div>
+          <div class="form-group">
+            <label class="form-label required">系統操作權限 (System Role) *</label>
+            <select id="form-member-role" class="form-select"></select>
+          </div>
         </div>
+
+        <!-- Row 3: Full width Salary Grade -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label required">薪資職級 (Salary Grade) *</label>
+          <select id="form-member-jobgrade" class="form-select"></select>
+        </div>
+
+        <!-- Row 4: Contact Info -->
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">登入 Gmail / 授權 Email *</label>
+            <label class="form-label required">登入 Gmail / 授權 Email *</label>
             <input type="email" id="form-member-email" class="form-input" placeholder="user@company.com">
           </div>
           <div class="form-group">

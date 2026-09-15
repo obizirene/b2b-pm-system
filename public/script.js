@@ -1699,30 +1699,33 @@
     }
 
     function renderAll(skipCloudSync = false) {
-      sanitizeJobGradesAndMembers();
-      state.tasks = getFlatTasks();
-      recalculateActualHoursFromWorkLogs();
-      updateRoleSimulatorOptions();
-      applyRolePermissions();
-      updateProjectSelectors();
-      updateBadges();
-      if (!currentAuthUser) initAuthUser();
+      try { sanitizeJobGradesAndMembers(); } catch (e) { console.error('sanitizeJobGradesAndMembers error:', e); }
+      try { state.tasks = getFlatTasks(); } catch (e) { console.error('getFlatTasks error:', e); }
+      try { recalculateActualHoursFromWorkLogs(); } catch (e) { console.error('recalculateActualHours error:', e); }
+      try {
+        updateRoleSimulatorOptions();
+        applyRolePermissions();
+        updateProjectSelectors();
+        updateBadges();
+      } catch (e) { console.error('UI update error:', e); }
 
-      renderDashboard();
-      renderMembersTable();
-      renderRolesTable();
-      renderClientsTable();
-      renderProjectsTable();
-      renderGraphicalGantt();
-      renderWorkLogsTable();
-      renderTasksTable();
-      renderIssuesTable();
-      renderHolidaysTable();
-      renderDepartmentsTable();
-      renderSalariesPage();
+      try { if (!currentAuthUser) initAuthUser(); } catch (e) { console.error('initAuthUser error:', e); }
+
+      try { renderDashboard(); } catch (e) { console.error('renderDashboard error:', e); }
+      try { renderMembersTable(); } catch (e) { console.error('renderMembersTable error:', e); }
+      try { renderRolesTable(); } catch (e) { console.error('renderRolesTable error:', e); }
+      try { renderClientsTable(); } catch (e) { console.error('renderClientsTable error:', e); }
+      try { renderProjectsTable(); } catch (e) { console.error('renderProjectsTable error:', e); }
+      try { renderGraphicalGantt(); } catch (e) { console.error('renderGraphicalGantt error:', e); }
+      try { renderWorkLogsTable(); } catch (e) { console.error('renderWorkLogsTable error:', e); }
+      try { renderTasksTable(); } catch (e) { console.error('renderTasksTable error:', e); }
+      try { renderIssuesTable(); } catch (e) { console.error('renderIssuesTable error:', e); }
+      try { renderHolidaysTable(); } catch (e) { console.error('renderHolidaysTable error:', e); }
+      try { renderDepartmentsTable(); } catch (e) { console.error('renderDepartmentsTable error:', e); }
+      try { renderSalariesPage(); } catch (e) { console.error('renderSalariesPage error:', e); }
 
       if (!skipCloudSync) {
-        syncToFirebase();
+        try { syncToFirebase(); } catch (e) { console.error('syncToFirebase error:', e); }
       }
     }
 
@@ -1913,187 +1916,239 @@
 
     // ================= 2. MEMBERS MANAGEMENT =================
     function renderMembersTable() {
-      const tbody = document.getElementById('members-table-body');
-      if (!tbody) return;
-      tbody.innerHTML = state.members.map(m => {
-        const assignedProjects = state.projects.filter(p => (p.teamMembers || []).includes(m.id));
-        const dept = (state.departments || []).find(d => 
-          d.id === m.departmentId || d.code === m.departmentId || d.name === m.departmentId || d.name === m.departmentName
-        );
-        const managedDept = (state.departments || []).find(d => 
-          d.managerId === m.id || (d.managerName && m.name && (d.managerName === m.name || d.managerName.includes(m.name) || m.name.includes(d.managerName)))
-        );
-        const effectiveDept = dept || managedDept;
-        const isDeptManager = !!managedDept && (!dept || managedDept.id === dept.id);
+      try {
+        const tbody = document.getElementById('members-table-body');
+        if (!tbody) return;
+        const members = state.members || [];
+        tbody.innerHTML = members.map(m => {
+          if (!m) return '';
+          const assignedProjects = (state.projects || []).filter(p => (p.teamMembers || []).includes(m.id));
+          const dept = (state.departments || []).find(d => 
+            d.id === m.departmentId || d.code === m.departmentId || d.name === m.departmentId || d.name === m.departmentName
+          );
+          const managedDept = (state.departments || []).find(d => 
+            d.managerId === m.id || (d.managerName && m.name && (d.managerName === m.name || d.managerName.includes(m.name) || m.name.includes(d.managerName)))
+          );
+          const effectiveDept = dept || managedDept;
+          const isDeptManager = !!managedDept && (!dept || managedDept.id === dept.id);
 
-        const deptBadgeHtml = effectiveDept ? 
-          `<span class="badge ${isDeptManager ? 'badge-warning' : 'badge-info'}" style="font-size:11px; font-weight:700;">${isDeptManager ? '👑 部門主管' : '👤 部門成員'} (${effectiveDept.code || 'DEPT'})</span><div style="font-size:11px; color:#64748b; margin-top:2px;">${effectiveDept.name}</div>` : 
-          '<span style="color:#94a3b8; font-size:12px;">未分派部門</span>';
+          const deptBadgeHtml = effectiveDept ? 
+            `<span class="badge ${isDeptManager ? 'badge-warning' : 'badge-info'}" style="font-size:11px; font-weight:700;">${isDeptManager ? '👑 部門主管' : '👤 部門成員'} (${effectiveDept.code || 'DEPT'})</span><div style="font-size:11px; color:#64748b; margin-top:2px;">${effectiveDept.name}</div>` : 
+            '<span style="color:#94a3b8; font-size:12px;">未分派部門</span>';
 
-        const { grade, metrics } = getMemberJobGradeMetrics(m);
+          const sysRole = getMemberSystemRole(m);
+          const grade = getMemberJobGrade(m);
+          const metrics = calculateJobGradeMetrics(grade || { monthlySalary: 60000 });
 
-        return `
-          <tr>
-            <td>
-              <div style="font-weight:700; color:#0f172a;">${m.name}</div>
-              <div style="font-size:11px; color:#94a3b8; font-family:monospace;">ID: ${m.id}</div>
-            </td>
-            <td>${deptBadgeHtml}</td>
-            <td>
-              <span class="badge badge-purple" style="font-weight:700;">${grade ? grade.name : m.role}</span>
-              ${grade ? `<div style="font-size:10px; color:#64748b;">${grade.category || ''}</div>` : ''}
-            </td>
-            <td style="font-family:monospace; font-weight:700; color:#047857;">
-              NT$ ${metrics.monthlySalary.toLocaleString()} <small style="color:#64748b; font-weight:normal;">/月</small>
-              <div style="font-size:11px; color:#2563eb; font-weight:normal;">人/時成本 NT$ ${metrics.overheadHourlyCost}/h</div>
-            </td>
-            <td style="font-family:monospace; color:#2563eb;">${m.email}</td>
-            <td style="font-family:monospace; color:#475569;">${m.phone || '-'}</td>
-            <td>
-              <span class="badge badge-slate">${assignedProjects.length} 個專案</span>
-            </td>
-            <td style="text-align: right;">
-              ${hasPermission('member_edit') ? `<button class="btn btn-secondary btn-xs" onclick="editMember('${m.id}')">編輯</button>` : ''}
-              ${hasPermission('member_delete') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteMember('${m.id}')">刪除</button>` : ''}
-            </td>
-          </tr>
-        `;
-      }).join('');
+          return `
+            <tr>
+              <td>
+                <div style="font-weight:700; color:#0f172a;">${m.name || '未命名'}</div>
+                <div style="font-size:11px; color:#94a3b8; font-family:monospace;">ID: ${m.id}</div>
+              </td>
+              <td>${deptBadgeHtml}</td>
+              <td>
+                <span class="badge badge-purple" style="font-weight:700;">🔑 ${sysRole ? sysRole.name : (m.role || '一般成員')}</span>
+              </td>
+              <td style="font-family:monospace; font-weight:700; color:#047857;">
+                NT$ ${metrics.monthlySalary.toLocaleString()} <small style="color:#64748b; font-weight:normal;">/月</small>
+                <div style="font-size:11px; color:#2563eb; font-weight:normal;">[${grade ? grade.category : '職級'}] ${grade ? grade.name : '標準職級'} (人/時成本 NT$ ${metrics.overheadHourlyCost}/h)</div>
+              </td>
+              <td style="font-family:monospace; color:#2563eb;">${m.email || '-'}</td>
+              <td style="font-family:monospace; color:#475569;">${m.phone || '-'}</td>
+              <td>
+                <span class="badge badge-slate">${assignedProjects.length} 個專案</span>
+              </td>
+              <td style="text-align: right;">
+                ${hasPermission('member_edit') ? `<button class="btn btn-secondary btn-xs" onclick="editMember('${m.id}')">編輯</button>` : ''}
+                ${hasPermission('member_delete') ? `<button class="btn btn-danger-outline btn-xs" onclick="deleteMember('${m.id}')">刪除</button>` : ''}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('Error rendering members table:', e);
+      }
     }
 
     function openMemberModal(id = null) {
-      document.getElementById('form-member-id').value = id || '';
-      document.getElementById('modal-member-title').innerText = id ? '編輯員工成員資料' : '新增團隊員工 / 成員';
-      
-      const gradeSelect = document.getElementById('form-member-jobgrade');
-      if (gradeSelect) {
-        const grades = state.jobGrades || getDefaultJobGrades();
-        gradeSelect.innerHTML = grades.map(g => {
-          const m = calculateJobGradeMetrics(g);
-          return `<option value="${g.id}">[${g.category}] ${g.name} (月薪 NT$ ${m.monthlySalary.toLocaleString()} | 人時成本 NT$ ${m.overheadHourlyCost}/h)</option>`;
-        }).join('');
-      }
+      try {
+        document.getElementById('form-member-id').value = id || '';
+        document.getElementById('modal-member-title').innerText = id ? '編輯員工成員資料' : '新增團隊員工 / 成員';
 
-      const deptSelect = document.getElementById('form-member-department');
-      if (deptSelect) {
-        deptSelect.innerHTML = '<option value="">-- 未指派部門 --</option>' +
-          (state.departments || []).map(d => `<option value="${d.id}">${d.name} (${d.code})</option>`).join('');
-      }
+        // 1. Populate Field A: System Role (系統操作權限)
+        const roleSelect = document.getElementById('form-member-role');
+        if (roleSelect) {
+          const roles = state.roles || [];
+          roleSelect.innerHTML = roles.map(r => `<option value="${r.id}">🔑 ${r.name}</option>`).join('');
+        }
 
-      if (id) {
-        const m = state.members.find(x => x.id === id);
-        if (m) {
-          document.getElementById('form-member-name').value = m.name;
-          const { grade } = getMemberJobGradeMetrics(m);
-          if (gradeSelect && grade) gradeSelect.value = grade.id;
-          if (deptSelect) deptSelect.value = m.departmentId || '';
-          document.getElementById('form-member-email').value = m.email;
-          document.getElementById('form-member-phone').value = m.phone || '';
+        // 2. Populate Field B: Salary Grade (薪資職級)
+        const gradeSelect = document.getElementById('form-member-jobgrade');
+        if (gradeSelect) {
+          const grades = state.jobGrades || getDefaultJobGrades();
+          gradeSelect.innerHTML = grades.map(g => {
+            const m = calculateJobGradeMetrics(g);
+            return `<option value="${g.id}">[${g.category}] ${g.name} (月薪 NT$ ${m.monthlySalary.toLocaleString()} | 人時成本 NT$ ${m.overheadHourlyCost}/h)</option>`;
+          }).join('');
         }
-      } else {
-        document.getElementById('form-member-name').value = '';
-        if (gradeSelect && state.jobGrades && state.jobGrades[0]) {
-          gradeSelect.value = state.jobGrades[0].id;
+
+        // 3. Populate Department select
+        const deptSelect = document.getElementById('form-member-department');
+        if (deptSelect) {
+          deptSelect.innerHTML = '<option value="">-- 未指派部門 --</option>' +
+            (state.departments || []).map(d => `<option value="${d.id}">${d.name} (${d.code})</option>`).join('');
         }
-        if (deptSelect) deptSelect.value = '';
-        document.getElementById('form-member-email').value = '';
-        document.getElementById('form-member-phone').value = '';
+
+        if (id) {
+          const m = (state.members || []).find(x => x.id === id);
+          if (m) {
+            document.getElementById('form-member-name').value = m.name || '';
+            const sysRole = getMemberSystemRole(m);
+            if (roleSelect && sysRole) roleSelect.value = sysRole.id;
+            const grade = getMemberJobGrade(m);
+            if (gradeSelect && grade) gradeSelect.value = grade.id;
+            if (deptSelect) deptSelect.value = m.departmentId || '';
+            document.getElementById('form-member-email').value = m.email || '';
+            document.getElementById('form-member-phone').value = m.phone || '';
+          }
+        } else {
+          document.getElementById('form-member-name').value = '';
+          if (roleSelect && state.roles && state.roles[0]) {
+            roleSelect.value = state.roles[0].id;
+          }
+          if (gradeSelect && state.jobGrades && state.jobGrades[0]) {
+            gradeSelect.value = state.jobGrades[0].id;
+          }
+          if (deptSelect) deptSelect.value = '';
+          document.getElementById('form-member-email').value = '';
+          document.getElementById('form-member-phone').value = '';
+        }
+        openModal('modal-member');
+      } catch (e) {
+        console.error('Error opening member modal:', e);
       }
-      openModal('modal-member');
     }
 
     function saveMember() {
-      const id = document.getElementById('form-member-id').value;
-      const name = document.getElementById('form-member-name').value.trim();
-      const jobGradeId = document.getElementById('form-member-jobgrade')?.value || '';
-      const gradeObj = (state.jobGrades || []).find(g => g.id === jobGradeId) || (state.jobGrades || [])[0];
-      const role = gradeObj ? gradeObj.name : '工程師';
-      const metrics = calculateJobGradeMetrics(gradeObj || { monthlySalary: 60000 });
-      const monthlySalary = metrics.monthlySalary;
-      const hourlyRate = metrics.overheadHourlyCost;
+      try {
+        const id = document.getElementById('form-member-id').value;
+        const name = document.getElementById('form-member-name').value.trim();
+        
+        // Field A: System Role
+        const systemRoleId = document.getElementById('form-member-role')?.value || '';
+        const roleObj = (state.roles || []).find(r => r.id === systemRoleId || r.name === systemRoleId) || (state.roles || [])[0];
+        const role = roleObj ? roleObj.name : '一般成員';
 
-      const departmentId = document.getElementById('form-member-department')?.value || '';
-      const deptObj = (state.departments || []).find(d => d.id === departmentId || d.code === departmentId);
-      const departmentName = deptObj ? deptObj.name : '';
-      const email = document.getElementById('form-member-email').value.trim();
-      const phone = document.getElementById('form-member-phone').value.trim();
+        // Field B: Salary Job Grade
+        const jobGradeId = document.getElementById('form-member-jobgrade')?.value || '';
+        const gradeObj = (state.jobGrades || []).find(g => g.id === jobGradeId) || (state.jobGrades || [])[0];
+        const metrics = calculateJobGradeMetrics(gradeObj || { monthlySalary: 60000 });
+        const monthlySalary = metrics.monthlySalary;
+        const hourlyRate = metrics.overheadHourlyCost;
 
-      if (!name || !email) {
-        alert('請填寫員工姓名與授權 Email！');
-        return;
-      }
+        const departmentId = document.getElementById('form-member-department')?.value || '';
+        const deptObj = (state.departments || []).find(d => d.id === departmentId || d.code === departmentId);
+        const departmentName = deptObj ? deptObj.name : '';
+        const email = document.getElementById('form-member-email').value.trim();
+        const phone = document.getElementById('form-member-phone').value.trim();
 
-      if (id) {
-        const m = state.members.find(x => x.id === id);
-        if (m) {
-          const oldName = m.name;
+        if (!name || !email) {
+          alert('請填寫員工姓名與授權 Email！');
+          return;
+        }
 
-          // Check if this member is currently a manager of any department
-          const managedDept = (state.departments || []).find(d => 
-            d.managerId === id || (d.managerName && m.name && (d.managerName === m.name || d.managerName.includes(m.name)))
-          );
+        if (!Array.isArray(state.members)) state.members = [];
 
-          // If member is a manager and being transferred to a different department (or unassigned)
-          if (managedDept && departmentId !== managedDept.id) {
-            const ok = confirm(`該員工（${m.name}）目前擔任 [${managedDept.name}] 主管，調離部門將自動解除其主管職位，是否確認調動？`);
-            if (!ok) return;
+        if (id) {
+          const m = state.members.find(x => x.id === id);
+          if (m) {
+            const oldName = m.name;
 
-            // User confirmed: unassign manager from former department
-            managedDept.managerId = '';
-            managedDept.managerName = '';
-          }
+            // Check if this member is currently a manager of any department
+            const managedDept = (state.departments || []).find(d => 
+              d.managerId === id || (d.managerName && m.name && (d.managerName === m.name || d.managerName.includes(m.name)))
+            );
 
-          m.name = name;
-          m.jobGradeId = jobGradeId;
-          m.role = role;
-          m.departmentId = departmentId;
-          m.departmentName = departmentName;
-          m.monthlySalary = monthlySalary;
-          m.hourlyRate = hourlyRate;
-          m.email = email;
-          m.phone = phone;
+            // If member is a manager and being transferred to a different department (or unassigned)
+            if (managedDept && departmentId !== managedDept.id) {
+              const ok = confirm(`該員工（${m.name}）目前擔任 [${managedDept.name}] 主管，調離部門將自動解除其主管職位，是否確認調動？`);
+              if (!ok) return;
 
-          // Synchronize department managerName & managerId if this member is still a manager
-          (state.departments || []).forEach(d => {
-            if (d.managerId === id || d.managerName === oldName || (oldName && d.managerName && d.managerName.includes(oldName))) {
-              if (d.managerId === id) {
-                d.managerName = name;
-              }
+              // User confirmed: unassign manager from former department
+              managedDept.managerId = '';
+              managedDept.managerName = '';
             }
-          });
 
-          // Synchronize tasks estimator / assignee if member name changed
-          if (oldName && oldName !== name) {
-            (state.phases || []).forEach(phase => {
-              (phase.modules || []).forEach(mod => {
-                (mod.tasks || []).forEach(t => {
-                  if (t.estimator && (t.estimator === oldName || t.estimator.includes(oldName))) {
-                    t.estimator = t.estimator.replace(oldName, name);
-                  }
-                  if (t.assignee && (t.assignee === oldName || t.assignee.includes(oldName))) {
-                    t.assignee = t.assignee.replace(oldName, name);
-                  }
-                  if (Array.isArray(t.assignees)) {
-                    t.assignees = t.assignees.map(a => a === oldName ? name : a);
-                  }
+            m.name = name;
+            m.systemRoleId = roleObj ? roleObj.id : systemRoleId;
+            m.role = role;
+            m.jobGradeId = gradeObj ? gradeObj.id : jobGradeId;
+            m.salaryGradeId = gradeObj ? gradeObj.id : jobGradeId;
+            m.departmentId = departmentId;
+            m.departmentName = departmentName;
+            m.monthlySalary = monthlySalary;
+            m.hourlyRate = hourlyRate;
+            m.email = email;
+            m.phone = phone;
+
+            // Synchronize department managerName & managerId if this member is still a manager
+            (state.departments || []).forEach(d => {
+              if (d.managerId === id || d.managerName === oldName || (oldName && d.managerName && d.managerName.includes(oldName))) {
+                if (d.managerId === id) {
+                  d.managerName = name;
+                }
+              }
+            });
+
+            // Synchronize tasks estimator / assignee if member name changed
+            if (oldName && oldName !== name) {
+              (state.phases || []).forEach(phase => {
+                (phase.modules || []).forEach(mod => {
+                  (mod.tasks || []).forEach(t => {
+                    if (t.estimator && (t.estimator === oldName || t.estimator.includes(oldName))) {
+                      t.estimator = t.estimator.replace(oldName, name);
+                    }
+                    if (t.assignee && (t.assignee === oldName || t.assignee.includes(oldName))) {
+                      t.assignee = t.assignee.replace(oldName, name);
+                    }
+                    if (Array.isArray(t.assignees)) {
+                      t.assignees = t.assignees.map(a => a === oldName ? name : a);
+                    }
+                  });
                 });
               });
-            });
+            }
           }
+          showToast('員工資料已成功更新！');
+        } else {
+          state.members.push({
+            id: 'user-' + Date.now(),
+            name,
+            systemRoleId: roleObj ? roleObj.id : systemRoleId,
+            role,
+            jobGradeId: gradeObj ? gradeObj.id : jobGradeId,
+            salaryGradeId: gradeObj ? gradeObj.id : jobGradeId,
+            departmentId,
+            departmentName,
+            monthlySalary,
+            hourlyRate,
+            email,
+            phone,
+            effectiveDate: TODAY,
+            salaryNotes: ''
+          });
+          showToast('已新增團隊成員！');
         }
-        showToast('員工資料已成功更新！');
-      } else {
-        state.members.push({
-          id: 'user-' + Date.now(),
-          name, jobGradeId, role, departmentId, departmentName, monthlySalary, hourlyRate, email, phone, effectiveDate: TODAY, salaryNotes: ''
-        });
-        showToast('已新增團隊成員！');
-      }
 
-      sanitizeJobGradesAndMembers();
-      syncToFirebase();
-      closeModal('modal-member');
-      renderAll();
+        sanitizeJobGradesAndMembers();
+        syncToFirebase();
+        closeModal('modal-member');
+        renderAll();
+      } catch (e) {
+        console.error('Error in saveMember:', e);
+        alert('儲存員工資料發生異常，請重試！');
+      }
     }
 
     function editMember(id) { openMemberModal(id); }
@@ -2334,11 +2389,30 @@
       };
     }
 
+    function getMemberSystemRole(m) {
+      if (!m) return null;
+      const roles = state.roles || [];
+      if (m.systemRoleId) {
+        const found = roles.find(r => r.id === m.systemRoleId || r.name === m.systemRoleId);
+        if (found) return found;
+      }
+      if (m.role) {
+        const found = roles.find(r => r.name === m.role || r.id === m.role || (m.role && m.role.includes(r.name)) || (r.name && r.name.includes(m.role)));
+        if (found) return found;
+      }
+      return roles.find(r => r.id === 'role-dev') || roles[0] || { name: '一般成員', permissions: [] };
+    }
+
     function getMemberJobGrade(m) {
       if (!m) return null;
-      const grades = state.jobGrades || [];
-      if (m.jobGradeId) {
-        const found = grades.find(g => g.id === m.jobGradeId);
+      const grades = state.jobGrades || getDefaultJobGrades();
+      const targetId = m.jobGradeId || m.salaryGradeId;
+      if (targetId) {
+        const found = grades.find(g => g.id === targetId);
+        if (found) return found;
+      }
+      if (m.jobGradeName) {
+        const found = grades.find(g => g.name === m.jobGradeName);
         if (found) return found;
       }
       if (m.role) {
@@ -2346,6 +2420,35 @@
         if (found) return found;
       }
       return grades[0] || null;
+    }
+
+    function sanitizeJobGradesAndMembers() {
+      try {
+        if (!state.jobGrades || state.jobGrades.length === 0) {
+          state.jobGrades = getDefaultJobGrades();
+        }
+        if (!Array.isArray(state.members)) {
+          state.members = [];
+        }
+        state.members.forEach(m => {
+          if (!m) return;
+          const sysRole = getMemberSystemRole(m);
+          if (sysRole) {
+            if (!m.systemRoleId) m.systemRoleId = sysRole.id;
+            if (!m.role) m.role = sysRole.name;
+          }
+          const grade = getMemberJobGrade(m);
+          if (grade) {
+            if (!m.jobGradeId) m.jobGradeId = grade.id;
+            if (!m.salaryGradeId) m.salaryGradeId = grade.id;
+            const metrics = calculateJobGradeMetrics(grade);
+            m.monthlySalary = metrics.monthlySalary;
+            m.hourlyRate = metrics.overheadHourlyCost;
+          }
+        });
+      } catch (e) {
+        console.error('Error in sanitizeJobGradesAndMembers:', e);
+      }
     }
 
     function getMemberJobGradeMetrics(m) {
