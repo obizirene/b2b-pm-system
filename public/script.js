@@ -2011,6 +2011,22 @@
         const m = state.members.find(x => x.id === id);
         if (m) {
           const oldName = m.name;
+
+          // Check if this member is currently a manager of any department
+          const managedDept = (state.departments || []).find(d => 
+            d.managerId === id || (d.managerName && m.name && (d.managerName === m.name || d.managerName.includes(m.name)))
+          );
+
+          // If member is a manager and being transferred to a different department (or unassigned)
+          if (managedDept && departmentId !== managedDept.id) {
+            const ok = confirm(`該員工（${m.name}）目前擔任 [${managedDept.name}] 主管，調離部門將自動解除其主管職位，是否確認調動？`);
+            if (!ok) return;
+
+            // User confirmed: unassign manager from former department
+            managedDept.managerId = '';
+            managedDept.managerName = '';
+          }
+
           m.name = name;
           m.role = role;
           m.departmentId = departmentId;
@@ -2020,11 +2036,12 @@
           m.email = email;
           m.phone = phone;
 
-          // Synchronize department managerName & managerId if this member is a manager
+          // Synchronize department managerName & managerId if this member is still a manager
           (state.departments || []).forEach(d => {
             if (d.managerId === id || d.managerName === oldName || (oldName && d.managerName && d.managerName.includes(oldName))) {
-              d.managerId = id;
-              d.managerName = name;
+              if (d.managerId === id) {
+                d.managerName = name;
+              }
             }
           });
 
@@ -2127,22 +2144,34 @@
       if (delBtn) delBtn.style.display = id ? 'inline-block' : 'none';
 
       const mgrSelect = document.getElementById('form-dept-manager');
-      if (mgrSelect) {
-        mgrSelect.innerHTML = '<option value="">-- 未指定主管 --</option>' + 
-          (state.members || []).map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
-      }
-
-      let dept = null;
-      if (id) {
-        dept = (state.departments || []).find(d => d.id === id);
-      }
+      let dept = id ? (state.departments || []).find(d => d.id === id) : null;
 
       if (dept) {
         document.getElementById('form-dept-name').value = dept.name || '';
-        if (mgrSelect) mgrSelect.value = dept.managerId || '';
+
+        // Filter members belonging strictly to this department
+        const deptMembers = (state.members || []).filter(m => 
+          m && (m.departmentId === dept.id || m.departmentName === dept.name || m.departmentId === dept.code)
+        );
+
+        if (mgrSelect) {
+          if (deptMembers.length > 0) {
+            mgrSelect.disabled = false;
+            mgrSelect.innerHTML = '<option value="">-- 待指定主管 --</option>' + 
+              deptMembers.map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+            mgrSelect.value = dept.managerId || '';
+          } else {
+            mgrSelect.disabled = true;
+            mgrSelect.innerHTML = '<option value="" selected>（此部門尚無成員，請先至員工管理指派成員）</option>';
+          }
+        }
       } else {
+        // Creating a new department - no members belong to a non-existent department yet
         document.getElementById('form-dept-name').value = '';
-        if (mgrSelect && state.members[0]) mgrSelect.value = state.members[0].id;
+        if (mgrSelect) {
+          mgrSelect.disabled = true;
+          mgrSelect.innerHTML = '<option value="" selected>（新建立部門尚無成員，建立後請先至員工管理指派成員）</option>';
+        }
       }
 
       openModal('modal-department');
@@ -2151,8 +2180,9 @@
     function saveDepartment() {
       const id = document.getElementById('form-dept-id').value;
       const name = document.getElementById('form-dept-name').value.trim();
-      const managerId = document.getElementById('form-dept-manager')?.value || '';
-      const managerObj = (state.members || []).find(m => m.id === managerId);
+      const mgrSelect = document.getElementById('form-dept-manager');
+      const managerId = (!mgrSelect || mgrSelect.disabled) ? '' : (mgrSelect.value || '');
+      const managerObj = managerId ? (state.members || []).find(m => m.id === managerId) : null;
       const managerName = managerObj ? managerObj.name : '';
 
       if (!name) {
@@ -2528,6 +2558,12 @@
       state.departments.forEach(dept => {
         if (!dept) return;
 
+        if (!dept.managerId && !dept.managerName) {
+          dept.managerId = '';
+          dept.managerName = '';
+          return;
+        }
+
         let mgr = null;
         if (dept.managerId) {
           mgr = state.members.find(m => m && m.id === dept.managerId);
@@ -2545,6 +2581,9 @@
           mgr.departmentName = dept.name;
           dept.managerId = mgr.id;
           dept.managerName = mgr.name;
+        } else {
+          dept.managerId = '';
+          dept.managerName = '';
         }
       });
 
