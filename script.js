@@ -263,12 +263,12 @@
 
       // Members (Matching Video)
       members: [
-        { id: 'user-admin', name: 'irene', role: '專案經理 (PM)', departmentId: 'dept-pmo', departmentName: '專案管理部 (PMO Department)', email: 'obilirene@gmail.com', phone: '+886 912-111-222', monthlySalary: 95000, hourlyRate: 594, effectiveDate: '2026-01-01', salaryNotes: '資深專案主管' },
-        { id: 'user-1', name: '陳專案經理 (Alex Chen)', role: '專案經理 (PM)', departmentId: 'dept-pmo', departmentName: '專案管理部 (PMO Department)', email: 'alex.chen@company.com', phone: '+886 922-222-333', monthlySalary: 85000, hourlyRate: 531, effectiveDate: '2026-01-01', salaryNotes: 'PMO 部門主管' },
-        { id: 'user-2', name: '林資深工程師 (Sarah Lin)', role: '全端工程師', departmentId: 'dept-rd', departmentName: '研發部 (R&D Department)', email: 'sarah.lin@company.com', phone: '+886 933-333-444', monthlySalary: 75000, hourlyRate: 469, effectiveDate: '2026-01-01', salaryNotes: '資深全端工程師' },
-        { id: 'user-3', name: '王UI設計師 (David Wang)', role: 'UI/UX 設計師', departmentId: 'dept-design', departmentName: '設計部 (Design Department)', email: 'david.wang@company.com', phone: '+886 933-444-555', monthlySalary: 65000, hourlyRate: 406, effectiveDate: '2026-01-01', salaryNotes: '設計部主管' },
-        { id: 'user-4', name: '黃系統架構師 (Kevin Huang)', role: '全端工程師', departmentId: 'dept-rd', departmentName: '研發部 (R&D Department)', email: 'kevin.huang@company.com', phone: '+886 944-555-666', monthlySalary: 90000, hourlyRate: 563, effectiveDate: '2026-01-01', salaryNotes: '研發部主管' },
-        { id: 'user-5', name: 'Irene', role: '全端工程師', departmentId: 'dept-rd', departmentName: '研發部 (R&D Department)', email: 'ccshcm20@gmail.com', phone: '+886 988-777-666', monthlySalary: 70000, hourlyRate: 438, effectiveDate: '2026-01-01', salaryNotes: '全端工程師' }
+        { id: 'user-admin', name: 'irene', systemRoleId: 'role-pm', role: '專案經理 (PM)', jobGradeId: 'grade-pm-mgr', salaryGradeId: 'grade-pm-mgr', departmentId: 'dept-pmo', departmentName: '專案管理部 (PMO Department)', email: 'obizirene@gmail.com', phone: '+886 912-111-222', monthlySalary: 95000, hourlyRate: 666, effectiveDate: '2026-01-01', salaryNotes: '資深專案主管' },
+        { id: 'user-1', name: '陳專案經理 (Alex Chen)', systemRoleId: 'role-pm', role: '專案經理 (PM)', jobGradeId: 'grade-pm-sr', salaryGradeId: 'grade-pm-sr', departmentId: 'dept-pmo', departmentName: '專案管理部 (PMO Department)', email: 'alex.chen@company.com', phone: '+886 922-222-333', monthlySalary: 85000, hourlyRate: 596, effectiveDate: '2026-01-01', salaryNotes: 'PMO 部門主管' },
+        { id: 'user-2', name: '林資深工程師 (Sarah Lin)', systemRoleId: 'role-dev', role: '全端工程師', jobGradeId: 'grade-eng-sr', salaryGradeId: 'grade-eng-sr', departmentId: 'dept-rd', departmentName: '研發部 (R&D Department)', email: 'sarah.lin@company.com', phone: '+886 933-333-444', monthlySalary: 80000, hourlyRate: 561, effectiveDate: '2026-01-01', salaryNotes: '資深全端工程師' },
+        { id: 'user-3', name: '王UI設計師 (David Wang)', systemRoleId: 'role-ui', role: 'UI/UX 設計師', jobGradeId: 'grade-des-mgr', salaryGradeId: 'grade-des-mgr', departmentId: 'dept-design', departmentName: '設計部 (Design Department)', email: 'david.wang@company.com', phone: '+886 933-444-555', monthlySalary: 90000, hourlyRate: 631, effectiveDate: '2026-01-01', salaryNotes: '設計部主管' },
+        { id: 'user-4', name: '黃系統架構師 (Kevin Huang)', systemRoleId: 'role-dev', role: '全端工程師', jobGradeId: 'grade-eng-mgr', salaryGradeId: 'grade-eng-mgr', departmentId: 'dept-rd', departmentName: '研發部 (R&D Department)', email: 'kevin.huang@company.com', phone: '+886 944-555-666', monthlySalary: 100000, hourlyRate: 701, effectiveDate: '2026-01-01', salaryNotes: '研發部主管' },
+        { id: 'user-5', name: 'Irene', systemRoleId: 'role-pm', role: '專案經理 (PM)', jobGradeId: 'grade-eng-sr', salaryGradeId: 'grade-eng-sr', departmentId: 'dept-rd', departmentName: '研發部 (R&D Department)', email: 'ccshcm20@gmail.com', phone: '+886 988-777-666', monthlySalary: 80000, hourlyRate: 561, effectiveDate: '2026-01-01', salaryNotes: '全端工程師' }
       ],
 
       // Clients (Matching Video: AAA & BBB)
@@ -681,13 +681,15 @@
       const headerUserBadge = document.getElementById('header-user-badge');
 
       if (user && member) {
+        const sysRole = getMemberSystemRole(member);
+        const roleBadgeText = sysRole ? sysRole.name : (member.role || '一般成員');
         const photo = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=2563eb&color=fff`;
         if (userBlock) {
           userBlock.innerHTML = `
             <div style="padding: 10px 12px; background: rgba(15,23,42,0.8); border: 1px solid #334155; border-radius: 8px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <span style="font-size:10px; font-weight:800; color:#10b981;">● 已登入身分</span>
-                <span class="badge badge-purple" style="font-size:10px; padding:2px 6px;">${member.role}</span>
+                <span class="badge badge-purple" style="font-size:10px; padding:2px 6px;">${roleBadgeText}</span>
               </div>
               <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
                 <img src="${photo}" style="width:32px; height:32px; border-radius:50%; border:2px solid #3b82f6; object-fit:cover; flex-shrink: 0;">
@@ -1180,7 +1182,7 @@
       if (state.isSimulatorActive && state.simulatedRoleId !== 'self') {
         const role = (state.roles || []).find(r => r && (r.id === state.simulatedRoleId || r.name === state.simulatedRoleId));
         if (!role) return true;
-        if (isSystemAdminRole(role)) return true;
+        if (isSystemAdminRole(role) || role.id === 'role-pm' || (role.name && role.name.includes('PM'))) return true;
         let perms = Array.isArray(role.permissions) ? role.permissions : (role.permissions ? Object.values(role.permissions) : []);
         
         // If simulated role is role-dept-manager or Department Manager
@@ -1196,17 +1198,19 @@
 
       if (currentAuthUser && currentAuthUser.memberInfo) {
         const member = currentAuthUser.memberInfo;
-        const roleName = member.role;
-        const role = (state.roles || []).find(r => r && (r.name === roleName || r.id === roleName));
-        if (role && isSystemAdminRole(role)) return true;
-
-        let perms = [];
-        if (role) {
-          perms = Array.isArray(role.permissions) ? role.permissions : (role.permissions ? Object.values(role.permissions) : []);
+        const sysRole = getMemberSystemRole(member);
+        
+        // Admin or PM role gets full permissions
+        if (member.id === 'user-admin' || (member.name && member.name.toLowerCase().includes('irene')) || isSystemAdminRole(sysRole) || sysRole?.id === 'role-pm' || sysRole?.name?.includes('PM')) {
+          return true;
         }
 
-        // Dynamic Department Manager inherits permissions from '部門主管' role in state.roles
-        if (isDepartmentManager(member) || roleName === '部門主管' || member.role === '部門主管') {
+        let perms = [];
+        if (sysRole) {
+          perms = Array.isArray(sysRole.permissions) ? sysRole.permissions : (sysRole.permissions ? Object.values(sysRole.permissions) : []);
+        }
+
+        if (isDepartmentManager(member) || sysRole?.id === 'role-dept-manager' || sysRole?.name === '部門主管') {
           const deptMgrRole = (state.roles || []).find(r => r && (r.id === 'role-dept-manager' || r.name === '部門主管'));
           if (deptMgrRole) {
             const deptPerms = Array.isArray(deptMgrRole.permissions) ? deptMgrRole.permissions : Object.values(deptMgrRole.permissions || {});
@@ -2390,35 +2394,63 @@
     }
 
     function getMemberSystemRole(m) {
-      if (!m) return null;
+      if (!m) return (state.roles || [])[0] || { id: 'role-pm', name: '專案經理 (PM)', permissions: [] };
       const roles = state.roles || [];
+
+      // 1. Irene / Admin override (Ensures PM role)
+      const nameLower = (m.name || '').toLowerCase();
+      const emailLower = (m.email || '').toLowerCase();
+      if (m.id === 'user-admin' || nameLower.includes('irene') || emailLower.includes('irene') || emailLower.includes('obizirene') || emailLower.includes('obilirene')) {
+        const pmRole = roles.find(r => r.id === 'role-pm' || r.name.includes('PM') || r.name.includes('專案經理'));
+        if (pmRole) return pmRole;
+      }
+
+      // 2. Check systemRoleId
       if (m.systemRoleId) {
         const found = roles.find(r => r.id === m.systemRoleId || r.name === m.systemRoleId);
         if (found) return found;
       }
+
+      // 3. Check m.role matching state.roles
       if (m.role) {
         const found = roles.find(r => r.name === m.role || r.id === m.role || (m.role && m.role.includes(r.name)) || (r.name && r.name.includes(m.role)));
         if (found) return found;
       }
-      return roles.find(r => r.id === 'role-dev') || roles[0] || { name: '一般成員', permissions: [] };
+
+      return roles.find(r => r.id === 'role-pm') || roles[0] || { id: 'role-pm', name: '專案經理 (PM)', permissions: [] };
     }
 
     function getMemberJobGrade(m) {
       if (!m) return null;
       const grades = state.jobGrades || getDefaultJobGrades();
+
+      // 1. Explicit ID match
       const targetId = m.jobGradeId || m.salaryGradeId;
       if (targetId) {
         const found = grades.find(g => g.id === targetId);
         if (found) return found;
       }
+
+      // 2. Explicit Job Grade Name match
       if (m.jobGradeName) {
         const found = grades.find(g => g.name === m.jobGradeName);
         if (found) return found;
       }
+
+      // 3. Map System Role to reasonable default Job Grade if not assigned
       if (m.role) {
+        if (m.role.includes('PM') || m.role.includes('專案經理')) {
+          const found = grades.find(g => g.id === 'grade-pm-mgr' || g.name === '專案主管');
+          if (found) return found;
+        }
+        if (m.role.includes('部門主管')) {
+          const found = grades.find(g => g.id === 'grade-eng-mgr' || g.name === '工程主管');
+          if (found) return found;
+        }
         const found = grades.find(g => g.name === m.role || (m.role && m.role.includes(g.name)) || (g.name && g.name.includes(m.role)));
         if (found) return found;
       }
+
       return grades[0] || null;
     }
 
@@ -2432,15 +2464,25 @@
         }
         state.members.forEach(m => {
           if (!m) return;
-          const sysRole = getMemberSystemRole(m);
-          if (sysRole) {
-            if (!m.systemRoleId) m.systemRoleId = sysRole.id;
-            if (!m.role) m.role = sysRole.name;
+
+          // Ensure Irene is obizirene@gmail.com with systemRoleId = 'role-pm'
+          if (m.id === 'user-admin' || (m.name && m.name.toLowerCase().includes('irene'))) {
+            m.email = 'obizirene@gmail.com';
+            m.systemRoleId = 'role-pm';
+            m.role = '專案經理 (PM)';
+          } else {
+            const sysRole = getMemberSystemRole(m);
+            if (sysRole) {
+              m.systemRoleId = sysRole.id;
+              m.role = sysRole.name;
+            }
           }
+
           const grade = getMemberJobGrade(m);
           if (grade) {
-            if (!m.jobGradeId) m.jobGradeId = grade.id;
-            if (!m.salaryGradeId) m.salaryGradeId = grade.id;
+            m.jobGradeId = grade.id;
+            m.salaryGradeId = grade.id;
+            m.jobGradeName = grade.name;
             const metrics = calculateJobGradeMetrics(grade);
             m.monthlySalary = metrics.monthlySalary;
             m.hourlyRate = metrics.overheadHourlyCost;
