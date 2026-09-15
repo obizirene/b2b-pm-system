@@ -4257,18 +4257,6 @@
     }
 
     function updateWorkLogUserDropdown(taskId, preferredUser = null) {
-      const userSelect = document.getElementById('form-worklog-user');
-      if (!userSelect) return;
-
-      if (!taskId) {
-        userSelect.innerHTML = '<option value="">-- 請先選擇任務 --</option>';
-        return;
-      }
-
-      const task = state.tasks.find(t => t.id === taskId);
-      if (!task) {
-        userSelect.innerHTML = '<option value="">-- 未知任務 --</option>';
-    function updateWorkLogUserDropdown(taskId, preferredUser = null) {
       const activeUserName = getCurrentUserName();
       const hiddenInput = document.getElementById('form-worklog-user');
       const displayEl = document.getElementById('form-worklog-user-display');
