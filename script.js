@@ -500,6 +500,9 @@
     } else if (!Array.isArray(state.holidays)) {
       state.holidays = Object.values(state.holidays);
     }
+    if (!state.jobGrades || state.jobGrades.length === 0) {
+      state.jobGrades = getDefaultJobGrades();
+    }
     sanitizeRoles();
     sanitizePhases();
 
@@ -2300,6 +2303,7 @@
         { id: 'grade-des-mgr', category: '設計類', name: '設計主管', monthlySalary: 90000 },
         { id: 'grade-des-sr', category: '設計類', name: '資深設計師', monthlySalary: 72000 },
         { id: 'grade-des-mid', category: '設計類', name: '一般設計師', monthlySalary: 52000 },
+        { id: 'grade-des-jr', category: '設計類', name: '助理設計師', monthlySalary: 38000 },
         // 專案類
         { id: 'grade-pm-mgr', category: '專案類', name: '專案主管', monthlySalary: 95000 },
         { id: 'grade-pm-sr', category: '專案類', name: '資深專案', monthlySalary: 75000 },
@@ -2311,11 +2315,12 @@
     function calculateJobGradeMetrics(grade) {
       const monthlySalary = Number(grade?.monthlySalary) || 0;
       const annualSalary = Math.round(monthlySalary * 13);
-      const dailyRate = Math.round(monthlySalary / 21.75);
-      const baseHourlyRate = Math.round(dailyRate / 8);
+      const baseHourlyRate = Math.round(annualSalary / 1996.8); // annualSalary / (12 * 20.8 * 8)
+      const dailyRate = baseHourlyRate * 8;
       const overheadHourlyCost = Math.round(baseHourlyRate * 1.4);
       const billingHourlyRate = Math.round(overheadHourlyCost * 1.5);
       const profitHourly = billingHourlyRate - overheadHourlyCost;
+      const profitMargin = '33.33%';
 
       return {
         monthlySalary,
@@ -2324,7 +2329,8 @@
         baseHourlyRate,
         overheadHourlyCost,
         billingHourlyRate,
-        profitHourly
+        profitHourly,
+        profitMargin
       };
     }
 
@@ -2441,7 +2447,7 @@
       const empTbody = document.getElementById('salaries-emp-table-body');
       if (empTbody) {
         if (!canView) {
-          empTbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:32px; color:#64748b;">🔒 薪資專區屬機密資料，您目前無檢視權限 (salary_view)</td></tr>`;
+          empTbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding:32px; color:#64748b;">🔒 薪資專區屬機密資料，您目前無檢視權限 (salary_view)</td></tr>`;
         } else {
           const grades = state.jobGrades || getDefaultJobGrades();
           empTbody.innerHTML = grades.map(g => {
@@ -2452,16 +2458,26 @@
               <tr>
                 <td><span class="badge badge-info" style="font-size:11px;">${g.category || '一般'}</span></td>
                 <td><div style="font-weight:700; color:#0f172a; font-size:14px;">${g.name}</div></td>
-                <td style="font-family:monospace; font-weight:800; color:#047857; font-size:14px;">
-                  NT$ ${m.monthlySalary.toLocaleString()}
-                  ${hasPermission('salary_edit') ? `<button class="btn btn-secondary btn-xs" style="margin-left:6px; font-size:10px;" onclick="quickEditGradeSalary('${g.id}')">✏️ 編輯月薪</button>` : ''}
+                <td style="font-family:monospace;">
+                  <div style="display:flex; align-items:center; gap:4px;">
+                    <span style="font-weight:700; color:#047857; font-size:12px;">NT$</span>
+                    <input type="number" 
+                           id="input-salary-${g.id}" 
+                           class="form-input form-input-sm" 
+                           style="width:100px; font-family:monospace; font-weight:800; color:#047857; padding:4px 8px;" 
+                           value="${m.monthlySalary}" 
+                           ${hasPermission('salary_edit') ? '' : 'disabled'} 
+                           oninput="handleGradeSalaryInput('${g.id}', this.value)" 
+                           onchange="handleGradeSalaryChange('${g.id}', this.value)">
+                  </div>
                 </td>
-                <td style="font-family:monospace; font-weight:700; color:#475569;">NT$ ${m.annualSalary.toLocaleString()}</td>
-                <td style="font-family:monospace;">NT$ ${m.dailyRate.toLocaleString()}</td>
-                <td style="font-family:monospace;">NT$ ${m.baseHourlyRate}/h</td>
-                <td style="font-family:monospace; font-weight:700; color:#2563eb;">NT$ ${m.overheadHourlyCost}/h</td>
-                <td style="font-family:monospace; font-weight:700; color:#d97706;">NT$ ${m.billingHourlyRate}/h</td>
-                <td style="font-family:monospace; font-weight:800; color:#10b981;">+ NT$ ${m.profitHourly}/h</td>
+                <td style="font-family:monospace; font-weight:700; color:#475569;"><span id="cell-annual-${g.id}">NT$ ${m.annualSalary.toLocaleString()}</span></td>
+                <td style="font-family:monospace;"><span id="cell-daily-${g.id}">NT$ ${m.dailyRate.toLocaleString()}</span></td>
+                <td style="font-family:monospace;"><span id="cell-hourly-${g.id}">NT$ ${m.baseHourlyRate}/h</span></td>
+                <td style="font-family:monospace; font-weight:700; color:#2563eb;"><span id="cell-cost-${g.id}">NT$ ${m.overheadHourlyCost}/h</span></td>
+                <td style="font-family:monospace; font-weight:700; color:#d97706;"><span id="cell-billing-${g.id}">NT$ ${m.billingHourlyRate}/h</span></td>
+                <td style="font-family:monospace; font-weight:800; color:#10b981;"><span id="cell-profit-${g.id}">+ NT$ ${m.profitHourly}/h</span></td>
+                <td style="font-family:monospace; font-weight:700; color:#64748b;"><span id="cell-margin-${g.id}">33.33%</span></td>
                 <td><span class="badge badge-slate" style="font-weight:700;">👥 ${assignedMembers.length} 位成員</span></td>
                 <td style="text-align:right;">
                   ${hasPermission('salary_edit') ? `<button class="btn btn-secondary btn-xs" onclick="openJobGradeModal('${g.id}')">編輯職級</button>` : ''}
@@ -2560,6 +2576,81 @@
             `;
           }).join('');
         }
+      }
+    }
+
+    function updateSalariesKPIs() {
+      const members = state.members || [];
+      const totalMonthlyBudget = members.reduce((sum, m) => {
+        const { metrics } = getMemberJobGradeMetrics(m);
+        return sum + metrics.monthlySalary;
+      }, 0);
+
+      const avgHourlyRate = members.length > 0 ? Math.round((members.reduce((sum, m) => {
+        const { metrics } = getMemberJobGradeMetrics(m);
+        return sum + metrics.overheadHourlyCost;
+      }, 0)) / members.length) : 375;
+
+      let totalLaborCost = 0;
+      (state.workLogs || []).forEach(w => {
+        let memberRate = 450;
+        const m = members.find(x => x.name === w.userName || x.id === w.userId);
+        if (m) {
+          const { metrics } = getMemberJobGradeMetrics(m);
+          memberRate = metrics.overheadHourlyCost;
+        }
+        totalLaborCost += (Number(w.hours) || 0) * memberRate;
+      });
+
+      const kpiMonthly = document.getElementById('kpi-total-monthly-salary');
+      const kpiAvgRate = document.getElementById('kpi-avg-hourly-rate');
+      const kpiTotalCost = document.getElementById('kpi-total-labor-cost');
+
+      if (kpiMonthly) kpiMonthly.innerText = `NT$ ${totalMonthlyBudget.toLocaleString()}`;
+      if (kpiAvgRate) kpiAvgRate.innerText = `NT$ ${avgHourlyRate}/h`;
+      if (kpiTotalCost) kpiTotalCost.innerText = `NT$ ${totalLaborCost.toLocaleString()}`;
+    }
+
+    function handleGradeSalaryInput(gradeId, value) {
+      const numVal = Math.max(0, Number(value) || 0);
+      if (!state.jobGrades) {
+        state.jobGrades = getDefaultJobGrades();
+      }
+      const grade = state.jobGrades.find(g => g.id === gradeId);
+      if (!grade) return;
+
+      grade.monthlySalary = numVal;
+      const m = calculateJobGradeMetrics(grade);
+
+      const elAnnual = document.getElementById(`cell-annual-${gradeId}`);
+      const elDaily = document.getElementById(`cell-daily-${gradeId}`);
+      const elHourly = document.getElementById(`cell-hourly-${gradeId}`);
+      const elCost = document.getElementById(`cell-cost-${gradeId}`);
+      const elBilling = document.getElementById(`cell-billing-${gradeId}`);
+      const elProfit = document.getElementById(`cell-profit-${gradeId}`);
+
+      if (elAnnual) elAnnual.innerText = `NT$ ${m.annualSalary.toLocaleString()}`;
+      if (elDaily) elDaily.innerText = `NT$ ${m.dailyRate.toLocaleString()}`;
+      if (elHourly) elHourly.innerText = `NT$ ${m.baseHourlyRate}/h`;
+      if (elCost) elCost.innerText = `NT$ ${m.overheadHourlyCost}/h`;
+      if (elBilling) elBilling.innerText = `NT$ ${m.billingHourlyRate}/h`;
+      if (elProfit) elProfit.innerText = `+ NT$ ${m.profitHourly}/h`;
+
+      updateSalariesKPIs();
+    }
+
+    function handleGradeSalaryChange(gradeId, value) {
+      const numVal = Math.max(0, Number(value) || 0);
+      if (!state.jobGrades) {
+        state.jobGrades = getDefaultJobGrades();
+      }
+      const grade = state.jobGrades.find(g => g.id === gradeId);
+      if (grade) {
+        grade.monthlySalary = numVal;
+      }
+      saveState();
+      if (typeof syncToFirebase === 'function') {
+        syncToFirebase();
       }
     }
 
