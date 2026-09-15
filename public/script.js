@@ -4415,7 +4415,7 @@
                   <span class="gantt-title-editable" id="module-title-${module.id}" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="點擊編輯第二階名稱" onclick="startInlineEditTitle('module', '${module.id}', event)"><span style="font-weight:700; color:#2563eb; margin-right:4px;">${pIdx + 1}.${mIdx + 1}</span> ${cleanTierTitle(module.name)}</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:2px; flex-shrink:0;">
-                  ${hasPermission('gantt_add_task') ? `<button class="gantt-icon-btn add-btn" title="新增功能/優化" onclick="event.stopPropagation(); inlineAddFeature('${phase.id}', '${module.id}')">+</button>` : ''}
+                  ${hasPermission('gantt_add_task') ? `<button class="gantt-icon-btn add-btn" title="新增功能 / CR" onclick="event.stopPropagation(); inlineAddFeature('${phase.id}', '${module.id}')">+</button>` : ''}
                   ${hasPermission('gantt_add_task') ? `<button class="gantt-icon-btn delete-btn" title="刪除此模組" onclick="event.stopPropagation(); inlineDeleteModule('${phase.id}', '${module.id}', event)">🗑️</button>` : ''}
                 </div>
               </div>
@@ -4427,17 +4427,21 @@
                 totalTreeRows++;
                 const tExpanded = t.expanded !== false;
                 const hasSubTasks = t.subTasks && t.subTasks.length > 0;
+                const l3Badge = t.type === '需求變更'
+                  ? `<span style="background:#ffedd5; color:#ea580c; border:1px solid #fed7aa; font-size:9.5px; padding:1px 5px; border-radius:4px; font-weight:700; flex-shrink:0;">CR</span>`
+                  : '';
                 leftHtml += `
                   <div class="gantt-left-row level-3">
                     <div style="display:flex; align-items:center; gap:6px; overflow:hidden; flex:1; min-width:0; cursor:pointer;" onclick="editTask('${t.id}')">
                       ${hasSubTasks ? `<span style="cursor:pointer; font-size:11px; user-select:none;" onclick="event.stopPropagation(); toggleGanttExpand('task', '${t.id}')">${tExpanded ? '▼' : '▶'}</span>` : `<span style="width:11px; display:inline-block;"></span>`}
+                      ${l3Badge}
                       <span style="font-size:10px; color:#2563eb; font-weight:700; font-family:monospace;">${t.wbs || `${pIdx + 1}.${mIdx + 1}.${tIdx + 1}`}</span>
                       <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600;" title="${t.title}">${t.title}</span>
                     </div>
                     <div style="display:flex; align-items:center; gap:3px; flex-shrink:0;">
                       <span class="badge ${getTaskBadgeClass(t.status)}" style="font-size:10px; cursor:pointer;" onclick="editTask('${t.id}')">${t.status}</span>
-                      ${hasPermission('gantt_add_task') ? `<button class="gantt-icon-btn add-btn" title="新增 Bug / CR 子項目" onclick="event.stopPropagation(); inlineAddSubTask('${phase.id}', '${module.id}', '${t.id}')">+</button>` : ''}
-                      ${hasPermission('task_delete') ? `<button class="gantt-icon-btn delete-btn" title="刪除此功能" onclick="event.stopPropagation(); inlineDeleteTask('${phase.id}', '${module.id}', '${t.id}', event)">🗑️</button>` : ''}
+                      ${hasPermission('gantt_add_task') ? `<button class="gantt-icon-btn add-btn" title="新增 Bug / 優化 子項目" onclick="event.stopPropagation(); inlineAddSubTask('${phase.id}', '${module.id}', '${t.id}')">+</button>` : ''}
+                      ${hasPermission('task_delete') ? `<button class="gantt-icon-btn delete-btn" title="刪除此功能/CR" onclick="event.stopPropagation(); inlineDeleteTask('${phase.id}', '${module.id}', '${t.id}', event)">🗑️</button>` : ''}
                     </div>
                   </div>
                 `;
@@ -4448,7 +4452,7 @@
                     totalTreeRows++;
                     const typeBadge = st.type === 'Bug' 
                       ? `<span style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; font-size:9.5px; padding:1px 5px; border-radius:4px; font-weight:700; flex-shrink:0;">Bug 瑕疵</span>`
-                      : `<span style="background:#ffedd5; color:#ea580c; border:1px solid #fed7aa; font-size:9.5px; padding:1px 5px; border-radius:4px; font-weight:700; flex-shrink:0;">需求變更</span>`;
+                      : `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; font-size:9.5px; padding:1px 5px; border-radius:4px; font-weight:700; flex-shrink:0;">優化</span>`;
                     leftHtml += `
                       <div class="gantt-left-row level-4">
                         <div style="display:flex; align-items:center; gap:6px; overflow:hidden; flex:1; min-width:0; cursor:pointer;" onclick="editTask('${st.id}')">
@@ -4458,7 +4462,7 @@
                         </div>
                         <div style="display:flex; align-items:center; gap:3px; flex-shrink:0;">
                           <span class="badge ${getTaskBadgeClass(st.status)}" style="font-size:10px; cursor:pointer;" onclick="editTask('${st.id}')">${st.status}</span>
-                          ${hasPermission('task_delete') ? `<button class="gantt-icon-btn delete-btn" title="刪除此 Bug/CR" onclick="event.stopPropagation(); inlineDeleteSubTask('${phase.id}', '${module.id}', '${t.id}', '${st.id}', event)">🗑️</button>` : ''}
+                          ${hasPermission('task_delete') ? `<button class="gantt-icon-btn delete-btn" title="刪除此 Bug/優化" onclick="event.stopPropagation(); inlineDeleteSubTask('${phase.id}', '${module.id}', '${t.id}', '${st.id}', event)">🗑️</button>` : ''}
                         </div>
                       </div>
                     `;
@@ -6472,45 +6476,47 @@
       const levelEl = document.getElementById('form-task-level');
       if (levelEl) levelEl.value = level;
 
+      const projEl = document.getElementById('form-task-project');
+      if (projEl) projEl.value = state.currentProjectId;
+      const phaseEl = document.getElementById('form-task-phase');
+      if (phaseEl) phaseEl.value = phaseId || '';
+      const modEl = document.getElementById('form-task-module');
+      if (modEl) modEl.value = moduleId || '';
+
       const banner = document.getElementById('form-task-hierarchy-banner');
-      const bannerTitle = document.getElementById('hierarchy-banner-title');
       const bannerPath = document.getElementById('hierarchy-banner-path');
       const typeSelect = document.getElementById('form-task-type');
-      const titleLabel = document.getElementById('label-form-task-title-input');
 
+      let currProj = getCurrentProject();
       let phase = state.phases.find(p => p.id === phaseId);
       let module = phase ? (phase.modules || []).find(m => m.id === moduleId) : null;
       let parentTask = parentTaskId ? state.tasks.find(t => t.id === parentTaskId) : null;
 
+      const projName = currProj ? currProj.name : '專案';
+      const pName = phase ? cleanTierTitle(phase.name) : '階段';
+      const mName = module ? cleanTierTitle(module.name) : '模組';
+
       if (level === 4 || parentTaskId) {
-        if (banner && bannerPath && bannerTitle) {
+        if (banner && bannerPath) {
           banner.style.display = 'block';
-          bannerTitle.innerText = '📌 階層歸屬路徑 (Level 4 Bug/CR 子項目)';
-          const pName = phase ? phase.name : '階段';
-          const mName = module ? module.name : '模組';
-          const tName = parentTask ? parentTask.title : '功能';
-          bannerPath.innerHTML = `<strong>${cleanTierTitle(pName)}</strong> ➜ <strong>${cleanTierTitle(mName)}</strong> ➜ <strong style="color:#2563eb;">${tName}</strong>`;
+          const tName = parentTask ? parentTask.title : '功能/CR';
+          bannerPath.innerHTML = `<strong>${projName}</strong> ➜ <strong>${pName}</strong> ➜ <strong>${mName}</strong> ➜ <strong style="color:#2563eb;">${tName}</strong>`;
         }
-        if (titleLabel) titleLabel.innerText = '第四層: Bug / CR 名稱 (Bug / CR Title) *';
         if (typeSelect) {
           typeSelect.innerHTML = `
             <option value="Bug">Bug 瑕疵</option>
-            <option value="需求變更">需求變更 (CR)</option>
+            <option value="優化">優化 (Optimization)</option>
           `;
         }
       } else {
-        if (banner && bannerPath && bannerTitle) {
+        if (banner && bannerPath) {
           banner.style.display = 'block';
-          bannerTitle.innerText = '📌 階層歸屬路徑 (Level 3 功能/優化)';
-          const pName = phase ? phase.name : '階段';
-          const mName = module ? module.name : '模組';
-          bannerPath.innerHTML = `<strong>${cleanTierTitle(pName)}</strong> ➜ <strong style="color:#2563eb;">${cleanTierTitle(mName)}</strong>`;
+          bannerPath.innerHTML = `<strong>${projName}</strong> ➜ <strong>${pName}</strong> ➜ <strong style="color:#2563eb;">${mName}</strong>`;
         }
-        if (titleLabel) titleLabel.innerText = '第三層: 功能 / 優化名稱 (Task Title) *';
         if (typeSelect) {
           typeSelect.innerHTML = `
             <option value="功能">功能 (Feature)</option>
-            <option value="優化">優化 (Optimization)</option>
+            <option value="需求變更">需求變更 (CR)</option>
           `;
         }
       }
@@ -6604,10 +6610,8 @@
             if (wbsEl) wbsEl.value = t.wbs || '';
             const titleEl = document.getElementById('form-task-title');
             if (titleEl) titleEl.value = t.title || '';
-            const bodyTitleInput = document.getElementById('form-task-title-input');
-            if (bodyTitleInput) bodyTitleInput.value = t.title || '';
             const typeEl = document.getElementById('form-task-type');
-            if (typeEl) typeEl.value = t.type || '功能';
+            if (typeEl) typeEl.value = t.type || (activeLevel === 4 ? 'Bug' : '功能');
 
             if (dept1Select && dept2Select) {
               if (t.estimatingDeptIds && Array.isArray(t.estimatingDeptIds) && t.estimatingDeptIds.length > 0) {
@@ -6643,29 +6647,14 @@
             if (sevEl) sevEl.value = t.severity || '無';
             setModalTaskTitle(t.title, false);
             updateScheduleRangeSummary();
-            updateTaskTypeSeverityState(t.type || '功能');
+            updateTaskTypeSeverityState(t.type || (activeLevel === 4 ? 'Bug' : '功能'));
           }
         } else {
-          if (prefillPhaseId) {
-            const phaseSel = document.getElementById('form-task-phase');
-            if (phaseSel) {
-              phaseSel.value = prefillPhaseId;
-              onTaskPhaseSelectChanged(prefillPhaseId);
-            }
-          }
-          if (prefillModuleId) {
-            const modSel = document.getElementById('form-task-module');
-            if (modSel) {
-              modSel.value = prefillModuleId;
-            }
-          }
           updateModalTaskAutoWBS();
           const titleEl = document.getElementById('form-task-title');
           if (titleEl) titleEl.value = '';
-          const bodyTitleInput = document.getElementById('form-task-title-input');
-          if (bodyTitleInput) bodyTitleInput.value = '';
           const typeEl = document.getElementById('form-task-type');
-          if (typeEl) typeEl.value = '功能';
+          if (typeEl) typeEl.value = activeLevel === 4 ? 'Bug' : '功能';
 
           if (dept1Select && dept2Select) {
             const depts = state.departments || [];
@@ -6701,7 +6690,7 @@
           if (sevEl) sevEl.value = '無';
           setModalTaskTitle('', true);
           updateScheduleRangeSummary();
-          updateTaskTypeSeverityState('功能');
+          updateTaskTypeSeverityState(activeLevel === 4 ? 'Bug' : '功能');
         }
         onTaskEstimatingDeptsChange();
         updateTaskScheduleSectionState(taskStatus, taskEstimator);
@@ -6714,8 +6703,7 @@
         openModal('modal-task');
       }
       setTimeout(() => {
-        const bodyTitleInput = document.getElementById('form-task-title-input');
-        if (bodyTitleInput && !taskId) bodyTitleInput.focus();
+        if (!taskId) startModalTaskTitleEdit();
       }, 120);
     }
 
@@ -6767,21 +6755,13 @@
         let moduleId = document.getElementById('form-task-module')?.value;
         const wbs = (document.getElementById('form-task-wbs')?.value || '').trim();
         
-        let title = (document.getElementById('form-task-title-input')?.value || document.getElementById('form-task-title')?.value || '').trim();
-        if (!title) {
-          const textVal = document.getElementById('modal-task-title-text')?.innerText || '';
-          if (textVal && !textVal.includes('點擊輸入') && !textVal.includes('未命名任務') && !textVal.includes('新增任務')) {
-            title = textVal.trim();
-          }
+        let title = (document.getElementById('form-task-title')?.value || document.getElementById('modal-task-title-text')?.innerText || '').trim();
+        if (title.includes('點擊輸入') || title.includes('未命名任務') || title.includes('新增任務')) {
+          title = '';
         }
         if (!title) {
-          alert('請填寫任務名稱！');
-          const bodyInput = document.getElementById('form-task-title-input');
-          if (bodyInput) {
-            bodyInput.focus();
-          } else {
-            startModalTaskTitleEdit();
-          }
+          alert('請填寫項目名稱！');
+          startModalTaskTitleEdit();
           return;
         }
 
@@ -6862,6 +6842,7 @@
 
           if (parentTask) {
             if (!parentTask.subTasks) parentTask.subTasks = [];
+            const subType = (type === 'Bug' || type === '優化') ? type : 'Bug';
 
             if (id) {
               let existingSubTask = null;
@@ -6886,7 +6867,7 @@
                 existingSubTask.parentTaskId = parentTask.id;
                 existingSubTask.wbs = wbs;
                 existingSubTask.title = title;
-                existingSubTask.type = (type === 'Bug' || type === '需求變更') ? type : 'Bug';
+                existingSubTask.type = subType;
                 existingSubTask.estimator = estimator;
                 existingSubTask.estimatingDeptIds = estimatingDeptIds;
                 existingSubTask.assignees = assignees;
@@ -6902,11 +6883,11 @@
                 }
               } else {
                 const newSubTask = {
-                  id, projectId, phaseId: phase.id, moduleId: targetMod.id, parentTaskId: parentTask.id, wbs, title, type: (type === 'Bug' || type === '需求變更') ? type : 'Bug', estimator, estimatingDeptIds, evaluations: {}, assignees, assignee, expectedDeliveryDate, startDate, dueDate, estHours, actHours: 0, status, severity
+                  id, projectId, phaseId: phase.id, moduleId: targetMod.id, parentTaskId: parentTask.id, wbs, title, type: subType, estimator, estimatingDeptIds, evaluations: {}, assignees, assignee, expectedDeliveryDate, startDate, dueDate, estHours, actHours: 0, status, severity
                 };
                 parentTask.subTasks.push(newSubTask);
               }
-              showToast(`Bug/CR「${title}」已成功更新！`);
+              showToast(`子項目「${title}」已成功更新！`);
             } else {
               const newSubTask = {
                 id: 'subtask-' + Date.now(),
@@ -6916,7 +6897,7 @@
                 parentTaskId: parentTask.id,
                 wbs,
                 title,
-                type: (type === 'Bug' || type === '需求變更') ? type : 'Bug',
+                type: subType,
                 estimator,
                 estimatingDeptIds,
                 evaluations: {},
@@ -6931,7 +6912,7 @@
                 severity
               };
               parentTask.subTasks.push(newSubTask);
-              showToast(`Bug/CR「${title}」建立成功！`);
+              showToast(`子項目「${title}」建立成功！`);
             }
           }
         } else {
