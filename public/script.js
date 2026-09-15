@@ -1492,6 +1492,37 @@
       updateTaskBasicFieldsPermissions();
     }
 
+    function updateTaskBasicFieldsPermissions() {
+      const taskId = document.getElementById('form-task-id')?.value;
+      const status = document.getElementById('form-task-status')?.value || '規劃中';
+      const isNewTask = !taskId;
+      const isManager = isCurrentRoleManager();
+      const canPublish = isManager || hasPermission('task_publish') || hasPermission('task_create') || hasPermission('task_edit');
+      const isDraftOrPlanning = isNewTask || !status || status === '規劃中' || status === '草稿' || status.includes('規') || status.includes('草');
+
+      const editable = isDraftOrPlanning && canPublish;
+
+      const fieldIds = [
+        'form-task-title-input',
+        'form-task-type',
+        'form-task-severity',
+        'form-task-project',
+        'form-task-phase',
+        'form-task-module',
+        'form-task-desc',
+        'form-task-dept-1',
+        'form-task-dept-2',
+        'form-task-expected-date'
+      ];
+
+      fieldIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.disabled = !editable;
+        }
+      });
+    }
+
     function toggleRoleSimulator(checked) {
       state.isSimulatorActive = checked;
       const headerChk = document.getElementById('header-simulator-toggle');
