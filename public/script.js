@@ -555,7 +555,11 @@
       const select = document.getElementById('login-quick-member-select');
       if (!select) return;
       select.innerHTML = '<option value="">-- 請選擇欲登入的團隊成員 --</option>' +
-        (state.members || []).map(m => `<option value="${m.id}">${m.name} (${m.role}) - ${m.email}</option>`).join('');
+        (state.members || []).map(m => {
+          const sysRole = getMemberSystemRole(m);
+          const sysRoleName = sysRole ? sysRole.name : (m.role || '一般成員');
+          return `<option value="${m.id}">${m.name} (${sysRoleName}) - ${m.email}</option>`;
+        }).join('');
     }
 
     function onLoginMemberSelect(memberId) {
@@ -586,7 +590,7 @@
       let matchedMember = state.members.find(m => m.email && m.email.toLowerCase().trim() === email);
       if (!matchedMember && (email.includes('irene') || email.includes('admin') || email === 'obilirene@gmail.com')) {
         matchedMember = state.members.find(m => m.name.toLowerCase().includes('irene')) || {
-          id: 'user-admin', name: 'irene', role: '專案經理 (PM)', email: 'obilirene@gmail.com', phone: '+886 912-111-222'
+          id: 'user-admin', name: 'irene', systemRoleId: 'role-pm', role: '專案經理 (PM)', email: 'obilirene@gmail.com', phone: '+886 912-111-222'
         };
       }
 
@@ -606,11 +610,14 @@
         if (isIrene) {
           state.simulatedRoleId = 'self';
         } else {
-          const matchedRole = state.roles.find(r => r.name === matchedMember.role || (r.name && matchedMember.role && (r.name.includes(matchedMember.role) || matchedMember.role.includes(r.name))));
-          if (matchedRole) {
-            state.simulatedRoleId = matchedRole.id;
+          const sysRole = getMemberSystemRole(matchedMember);
+          if (sysRole) {
+            state.simulatedRoleId = sysRole.id;
           }
         }
+
+        const sysRoleObj = getMemberSystemRole(matchedMember);
+        const roleLabel = sysRoleObj ? sysRoleObj.name : (matchedMember.role || '成員');
 
         updateUserUI(currentAuthUser, matchedMember);
         updateRoleSimulatorOptions();
@@ -618,7 +625,7 @@
         renderAll();
 
         closeModal('modal-login');
-        showToast(`登入成功！歡迎回來，${matchedMember.name}（${matchedMember.role}）！`);
+        showToast(`登入成功！歡迎回來，${matchedMember.name}（${roleLabel}）！`);
       } else {
         alert(`⛔ 存取被拒絕！\n\n您輸入的帳號 Email (${email}) 未在系統「員工管理」授權名冊中。\n請向專案經理 (PM) 確認是否已於員工管理完成建檔。`);
       }
@@ -637,7 +644,7 @@
       let matchedMember = state.members.find(m => m.email && m.email.toLowerCase().trim() === email);
 
       if (!matchedMember && (email.includes('irene') || email.includes('admin') || email === 'obilirene@gmail.com')) {
-        matchedMember = { id: 'user-admin', name: 'irene', role: '專案經理 (PM)', email: user.email, phone: '+886 912-111-222' };
+        matchedMember = { id: 'user-admin', name: 'irene', systemRoleId: 'role-pm', role: '專案經理 (PM)', email: user.email, phone: '+886 912-111-222' };
         state.members.unshift(matchedMember);
         renderMembersTable();
         syncToFirebase();
@@ -659,8 +666,8 @@
         if (isIrene) {
           state.simulatedRoleId = 'self';
         } else {
-          const matchedRole = state.roles.find(r => r.name === matchedMember.role || (r.name && matchedMember.role && (r.name.includes(matchedMember.role) || matchedMember.role.includes(r.name))));
-          if (matchedRole) state.simulatedRoleId = matchedRole.id;
+          const sysRole = getMemberSystemRole(matchedMember);
+          if (sysRole) state.simulatedRoleId = sysRole.id;
         }
 
         closeModal('modal-login');
@@ -2277,7 +2284,10 @@
           if (deptMembers.length > 0) {
             mgrSelect.disabled = false;
             mgrSelect.innerHTML = '<option value="">-- 待指定主管 --</option>' + 
-              deptMembers.map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+              deptMembers.map(m => {
+                const sysRole = getMemberSystemRole(m);
+                return `<option value="${m.id}">${m.name} (${sysRole ? sysRole.name : (m.role || '一般成員')})</option>`;
+              }).join('');
             mgrSelect.value = dept.managerId || '';
           } else {
             mgrSelect.disabled = true;
@@ -6563,7 +6573,8 @@
             managerMembers.map(m => {
               const dept = (state.departments || []).find(d => d.id === m.departmentId);
               const deptLabel = dept ? ` [${dept.name.split(' ')[0]}]` : '';
-              return `<option value="${m.name}">${m.name} (${m.role})${deptLabel}</option>`;
+              const sysRole = getMemberSystemRole(m);
+              return `<option value="${m.name}">${m.name} (${sysRole ? sysRole.name : (m.role || '成員')})${deptLabel}</option>`;
             }).join('');
         }
 
@@ -7069,7 +7080,10 @@
       projSelect.innerHTML = state.projects.map(p => `<option value="${p.id}" ${p.id === state.currentProjectId ? 'selected' : ''}>${p.name}</option>`).join('');
 
       const assigneeSelect = document.getElementById('form-issue-assignee');
-      assigneeSelect.innerHTML = state.members.map(m => `<option value="${m.name}">${m.name} (${m.role})</option>`).join('');
+      assigneeSelect.innerHTML = state.members.map(m => {
+        const sysRole = getMemberSystemRole(m);
+        return `<option value="${m.name}">${m.name} (${sysRole ? sysRole.name : (m.role || '成員')})</option>`;
+      }).join('');
 
       onIssueProjectSelectChanged(state.currentProjectId);
 
