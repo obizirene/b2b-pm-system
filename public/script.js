@@ -4861,26 +4861,10 @@
         const pRow = currentRow++;
         const pExpanded = phase.expanded !== false;
 
-        const pRange = getGroupDateRange([phase]);
-        if (pRange && pRange.startStr && pRange.dueStr) {
-          const x = getX(pRange.startStr);
-          const w = getW(pRange.startStr, pRange.dueStr);
-          const y = pRow * rowH + 13;
-          barsHtml += renderSummaryBar(x, w, y, 14, '#1e40af', `${cleanTierTitle(phase.name)} (階段總區間)`);
-        }
-
         if (pExpanded) {
           (phase.modules || []).forEach(module => {
             const mRow = currentRow++;
             const mExpanded = module.expanded !== false;
-
-            const mRange = getGroupDateRange(module.tasks || []);
-            if (mRange && mRange.startStr && mRange.dueStr) {
-              const x = getX(mRange.startStr);
-              const w = getW(mRange.startStr, mRange.dueStr);
-              const y = mRow * rowH + 14;
-              barsHtml += renderSummaryBar(x, w, y, 12, '#2563eb', `${cleanTierTitle(module.name)} (模組總區間)`);
-            }
 
             if (mExpanded) {
               (module.tasks || []).forEach(t => {
@@ -4889,15 +4873,7 @@
                 const tExpanded = t.expanded !== false;
                 const hasSubTasks = t.subTasks && t.subTasks.length > 0;
 
-                if (hasSubTasks) {
-                  const tRange = getGroupDateRange([t]);
-                  if (tRange && tRange.startStr && tRange.dueStr) {
-                    const x = getX(tRange.startStr);
-                    const w = getW(tRange.startStr, tRange.dueStr);
-                    const y = tRow * rowH + 15;
-                    barsHtml += renderSummaryBar(x, w, y, 10, '#0284c7', `${t.title} (功能總彙總)`);
-                  }
-                } else {
+                if (!hasSubTasks) {
                   barsHtml += renderSingleTaskBar(t, tRow, getX, getW, dayPixelWidth, rowH);
                 }
 
